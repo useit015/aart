@@ -10,12 +10,14 @@ import {
   MenuIcon,
   MoonIcon,
   PlayIcon,
+  Redo2Icon,
   RotateCcwIcon,
   RotateCwIcon,
   SparklesIcon,
   SquareIcon,
   SunIcon,
   Trash2Icon,
+  Undo2Icon,
   WandSparklesIcon
 } from "lucide-react";
 import {
@@ -105,9 +107,14 @@ const DEMO_PALETTES = [
   ["#f15bb5", "#fee440", "#141414"]
 ];
 
-const DEMO_PRESETS = Array.from({ length: 6 }, (_, index) => ({
+const DEMO_PRESETS = Array.from({ length: 31 }, (_, index) => ({
   id: index + 1,
   label: `Demo ${String(index + 1).padStart(2, "0")}`
+}));
+
+const VIDEO_DEMO_PRESETS = Array.from({ length: 3 }, (_, index) => ({
+  id: index + 1,
+  label: `Video ${String(index + 1).padStart(2, "0")}`
 }));
 
 const BACKGROUND_PRESETS = [
@@ -115,6 +122,35 @@ const BACKGROUND_PRESETS = [
   { id: 2, label: "Background 02", colors: ["#0b132b", "#5bc0be", "#fca311"] },
   { id: 3, label: "Background 03", colors: ["#2b2d42", "#ef233c", "#8d99ae"] },
   { id: 4, label: "Background 04", colors: ["#031d44", "#ff7d00", "#f9c74f"] }
+];
+
+const EFFECT_AMOUNT_CONTROLS = {
+  vignette: "Vignette Amount",
+  scanLines: "Scan Lines Amount",
+  crt: "CRT Amount",
+  chromatic: "Chromatic Amount",
+  bloom: "Bloom Amount",
+  charBloom: "Character Bloom Amount",
+  charChromatic: "Character Chromatic Amount",
+  filmGrain: "Film Grain Amount",
+  glitch: "Glitch Amount",
+  rgbSplit: "RGB Split Amount",
+  blur: "Blur Amount",
+  pixelate: "Pixelate Amount",
+  halftone: "Halftone Amount",
+  filmDust: "Film Dust Amount",
+  sparkles: "Sparkles Amount"
+};
+
+const CROP_HANDLES = [
+  ["nw", "top left", 0, 0],
+  ["n", "top", 0.5, 0],
+  ["ne", "top right", 1, 0],
+  ["e", "right", 1, 0.5],
+  ["se", "bottom right", 1, 1],
+  ["s", "bottom", 0.5, 1],
+  ["sw", "bottom left", 0, 1],
+  ["w", "left", 0, 0.5]
 ];
 
 function isCanvasRuntimeAvailable() {
@@ -210,6 +246,46 @@ function getCanvasPoint(event, canvas) {
     x: clamp((event.clientX - rect.left) / rect.width, 0, 1),
     y: clamp((event.clientY - rect.top) / rect.height, 0, 1)
   };
+}
+
+function sanitizeCrop(crop) {
+  const x = clamp(crop.x, 0, 0.95);
+  const y = clamp(crop.y, 0, 0.95);
+  return {
+    x,
+    y,
+    w: clamp(crop.w, 0.05, 1 - x),
+    h: clamp(crop.h, 0.05, 1 - y),
+    rotation: Number(crop.rotation || 0)
+  };
+}
+
+function cropFromHandle(startCrop, point, handle) {
+  if (handle === "move") {
+    return sanitizeCrop({
+      ...startCrop,
+      x: point.x - startCrop.w / 2,
+      y: point.y - startCrop.h / 2
+    });
+  }
+
+  let left = startCrop.x;
+  let top = startCrop.y;
+  let right = startCrop.x + startCrop.w;
+  let bottom = startCrop.y + startCrop.h;
+
+  if (handle.includes("w")) left = clamp(point.x, 0, right - 0.05);
+  if (handle.includes("e")) right = clamp(point.x, left + 0.05, 1);
+  if (handle.includes("n")) top = clamp(point.y, 0, bottom - 0.05);
+  if (handle.includes("s")) bottom = clamp(point.y, top + 0.05, 1);
+
+  return sanitizeCrop({
+    ...startCrop,
+    x: left,
+    y: top,
+    w: right - left,
+    h: bottom - top
+  });
 }
 
 function drawCroppedSource(ctx, source, sourceWidth, sourceHeight, width, height, crop) {
@@ -372,28 +448,29 @@ function drawTintedSnapshot(ctx, snapshot, width, height, dx, color, alpha) {
   ctx.restore();
 }
 
-function applyPixelate(ctx, snapshot, width, height) {
+function applyPixelate(ctx, snapshot, width, height, amount) {
   const pixelCanvas = document.createElement("canvas");
   const pixelCtx = pixelCanvas.getContext("2d");
-  const scale = 0.12;
+  const scale = 0.22 - amount * 0.16;
   pixelCanvas.width = Math.max(1, Math.round(width * scale));
   pixelCanvas.height = Math.max(1, Math.round(height * scale));
   pixelCtx.imageSmoothingEnabled = false;
   pixelCtx.drawImage(snapshot, 0, 0, pixelCanvas.width, pixelCanvas.height);
   ctx.save();
   ctx.imageSmoothingEnabled = false;
-  ctx.globalAlpha = 0.72;
+  ctx.globalAlpha = 0.4 + amount * 0.48;
   ctx.drawImage(pixelCanvas, 0, 0, pixelCanvas.width, pixelCanvas.height, 0, 0, width, height);
   ctx.restore();
 }
 
-function applyHalftone(ctx, width, height) {
+function applyHalftone(ctx, width, height, amount) {
   ctx.save();
   ctx.globalCompositeOperation = "multiply";
-  for (let y = 0; y < height; y += 18) {
-    for (let x = 0; x < width; x += 18) {
-      const radius = 1.5 + ((x * 7 + y * 11) % 9);
-      ctx.fillStyle = `rgba(0,0,0,${0.12 + radius / 80})`;
+  const gap = 24 - amount * 12;
+  for (let y = 0; y < height; y += gap) {
+    for (let x = 0; x < width; x += gap) {
+      const radius = 1.5 + ((x * 7 + y * 11) % (4 + amount * 10));
+      ctx.fillStyle = `rgba(0,0,0,${0.08 + amount * 0.18 + radius / 90})`;
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
@@ -402,26 +479,27 @@ function applyHalftone(ctx, width, height) {
   ctx.restore();
 }
 
-function applyGlitch(ctx, snapshot, width, height, tick) {
+function applyGlitch(ctx, snapshot, width, height, tick, amount) {
   ctx.save();
-  for (let i = 0; i < 10; i += 1) {
+  const slices = 4 + Math.round(amount * 12);
+  for (let i = 0; i < slices; i += 1) {
     const sliceHeight = 6 + ((i * 17) % 28);
     const y = (i * 71 + Math.floor(tick / 35)) % height;
-    const offset = ((i % 2 ? -1 : 1) * (8 + ((i * 13) % 24)));
+    const offset = ((i % 2 ? -1 : 1) * (4 + amount * 32 + ((i * 13) % 12)));
     ctx.globalAlpha = 0.82;
     ctx.drawImage(snapshot, 0, y, width, sliceHeight, offset, y, width, sliceHeight);
   }
   ctx.restore();
 }
 
-function applyCrt(ctx, width, height) {
+function applyCrt(ctx, width, height, amount) {
   ctx.save();
-  ctx.fillStyle = "rgba(255,255,255,.05)";
+  ctx.fillStyle = `rgba(255,255,255,${0.025 + amount * 0.055})`;
   for (let y = 0; y < height; y += 4) ctx.fillRect(0, y, width, 1);
   const curve = ctx.createRadialGradient(width / 2, height / 2, width * 0.1, width / 2, height / 2, width * 0.78);
   curve.addColorStop(0, "rgba(255,255,255,.04)");
   curve.addColorStop(0.75, "rgba(0,0,0,.02)");
-  curve.addColorStop(1, "rgba(0,0,0,.32)");
+  curve.addColorStop(1, `rgba(0,0,0,${0.16 + amount * 0.34})`);
   ctx.fillStyle = curve;
   ctx.fillRect(0, 0, width, height);
   ctx.restore();
@@ -432,29 +510,31 @@ function applyImageEffects(ctx, width, height, settings, tick = 0) {
   const passes = resolvePostProcessingPlan(effects);
   if (!passes.length) return;
   const snapshot = snapshotCanvas(ctx, width, height);
+  const amount = (key, fallback = 50) => Number(effects[`${key}Amount`] ?? fallback) / 100;
 
-  if (passes.includes("pixelate")) applyPixelate(ctx, snapshot, width, height);
+  if (passes.includes("pixelate")) applyPixelate(ctx, snapshot, width, height, amount("pixelate"));
   if (passes.includes("blur")) {
     ctx.save();
-    ctx.globalAlpha = 0.58;
-    ctx.filter = "blur(2.6px)";
+    ctx.globalAlpha = 0.28 + amount("blur") * 0.58;
+    ctx.filter = `blur(${1 + amount("blur") * 5}px)`;
     ctx.drawImage(snapshot, 0, 0, width, height);
     ctx.restore();
   }
   if (passes.includes("bloom")) {
     ctx.save();
     ctx.globalCompositeOperation = "screen";
-    ctx.globalAlpha = 0.42;
-    ctx.filter = "blur(10px) saturate(1.35)";
+    ctx.globalAlpha = 0.2 + amount("bloom") * 0.58;
+    ctx.filter = `blur(${4 + amount("bloom") * 18}px) saturate(${1.1 + amount("bloom") * 0.7})`;
     ctx.drawImage(snapshot, 0, 0, width, height);
     ctx.restore();
   }
   if (passes.includes("chromatic") || passes.includes("rgb-split")) {
-    const amount = passes.includes("rgb-split") ? 7 : 3;
-    drawTintedSnapshot(ctx, snapshot, width, height, -amount, "rgb(255,40,100)", 0.38);
-    drawTintedSnapshot(ctx, snapshot, width, height, amount, "rgb(30,210,255)", 0.34);
+    const splitAmount = passes.includes("rgb-split") ? amount("rgbSplit") : amount("chromatic");
+    const offset = 2 + splitAmount * (passes.includes("rgb-split") ? 13 : 7);
+    drawTintedSnapshot(ctx, snapshot, width, height, -offset, "rgb(255,40,100)", 0.24 + splitAmount * 0.28);
+    drawTintedSnapshot(ctx, snapshot, width, height, offset, "rgb(30,210,255)", 0.22 + splitAmount * 0.25);
   }
-  if (passes.includes("glitch")) applyGlitch(ctx, snapshot, width, height, tick);
+  if (passes.includes("glitch")) applyGlitch(ctx, snapshot, width, height, tick, amount("glitch"));
 
   if (effects.colorOverlay) {
     ctx.save();
@@ -465,27 +545,28 @@ function applyImageEffects(ctx, width, height, settings, tick = 0) {
     ctx.restore();
   }
   if (effects.vignette) {
-    const vignette = ctx.createRadialGradient(width / 2, height / 2, width * 0.15, width / 2, height / 2, width * 0.72);
+    const vignette = ctx.createRadialGradient(width / 2, height / 2, width * (0.22 - amount("vignette") * 0.1), width / 2, height / 2, width * 0.72);
     vignette.addColorStop(0, "rgba(0,0,0,0)");
-    vignette.addColorStop(1, "rgba(0,0,0,.62)");
+    vignette.addColorStop(1, `rgba(0,0,0,${0.24 + amount("vignette") * 0.62})`);
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, width, height);
   }
   if (effects.scanLines) {
-    ctx.fillStyle = "rgba(0,0,0,.2)";
+    ctx.fillStyle = `rgba(0,0,0,${0.08 + amount("scanLines") * 0.32})`;
     for (let y = 0; y < height; y += 6) ctx.fillRect(0, y, width, 1);
   }
-  if (passes.includes("crt")) applyCrt(ctx, width, height);
-  if (passes.includes("halftone")) applyHalftone(ctx, width, height);
+  if (passes.includes("crt")) applyCrt(ctx, width, height, amount("crt"));
+  if (passes.includes("halftone")) applyHalftone(ctx, width, height, amount("halftone"));
   if (effects.filmGrain || effects.filmDust) {
-    ctx.fillStyle = effects.filmDust ? "rgba(255,255,255,.28)" : "rgba(255,255,255,.12)";
-    for (let i = 0; i < (effects.filmDust ? 120 : 800); i += 1) {
+    const dustAmount = effects.filmDust ? amount("filmDust") : amount("filmGrain");
+    ctx.fillStyle = effects.filmDust ? `rgba(255,255,255,${0.08 + dustAmount * 0.32})` : `rgba(255,255,255,${0.04 + dustAmount * 0.16})`;
+    for (let i = 0; i < (effects.filmDust ? 40 + dustAmount * 180 : 200 + dustAmount * 1000); i += 1) {
       ctx.fillRect(Math.random() * width, Math.random() * height, effects.filmDust ? 2 : 1, effects.filmDust ? 2 : 1);
     }
   }
   if (effects.sparkles) {
     ctx.fillStyle = "rgba(255,255,255,.85)";
-    for (let i = 0; i < 30; i += 1) ctx.fillText("*", (i * 97) % width, (i * 53) % height);
+    for (let i = 0; i < 12 + amount("sparkles") * 48; i += 1) ctx.fillText("*", (i * 97) % width, (i * 53) % height);
   }
 }
 
@@ -506,7 +587,7 @@ function drawStyledCell(ctx, cell, settings, tick, width, height) {
   ctx.strokeStyle = cell.color;
   ctx.lineWidth = Math.max(1, settings.fontSize / 11);
   ctx.shadowColor = settings.effects.charBloom || settings.effects.bloom ? cell.color : "transparent";
-  ctx.shadowBlur = settings.effects.charBloom ? 8 : settings.effects.bloom ? 14 : 0;
+  ctx.shadowBlur = settings.effects.charBloom ? 3 + (settings.effects.charBloomAmount / 100) * 14 : settings.effects.bloom ? 14 : 0;
 
   if (settings.animated) {
     ctx.translate(centerX + transform.x, centerY + transform.y);
@@ -557,13 +638,22 @@ function drawStyledCell(ctx, cell, settings, tick, width, height) {
     ctx.font = `${settings.fontSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
     ctx.fillText("⣿⣶⣤⡀"[Math.round((1 - cell.luminance / 255) * 5)] || "⠂", cell.x, cell.y + cell.h);
   } else if (settings.style === "3d") {
-    ctx.fillRect(cell.x + 2, cell.y + 4, cell.w * 0.72, cell.h * 0.62);
-    ctx.fillStyle = "rgba(255,255,255,.32)";
-    ctx.fillRect(cell.x, cell.y + 1, cell.w * 0.72, 4);
-    ctx.fillStyle = "rgba(0,0,0,.32)";
-    ctx.fillRect(cell.x + cell.w * 0.62, cell.y + 5, 4, cell.h * 0.55);
+    const insetX = settings.cubeHSpacing / 8;
+    const insetY = settings.cubeVSpacing / 8;
+    ctx.fillRect(cell.x + 2 + insetX, cell.y + 4 + insetY, cell.w * 0.72, cell.h * 0.62);
+    ctx.fillStyle = `rgba(255,255,255,${settings.cubeTopShade / 160})`;
+    ctx.fillRect(cell.x + insetX, cell.y + 1 + insetY, cell.w * 0.72, 4);
+    ctx.fillStyle = `rgba(255,255,255,${settings.cubeLightSide / 220})`;
+    ctx.fillRect(settings.cubeFlipLight ? cell.x + insetX : cell.x + cell.w * 0.62, cell.y + 5 + insetY, 4, cell.h * 0.55);
+    ctx.fillStyle = `rgba(0,0,0,${settings.cubeDarkSide / 150})`;
+    ctx.fillRect(settings.cubeFlipLight ? cell.x + cell.w * 0.62 : cell.x + insetX, cell.y + cell.h * 0.56, cell.w * 0.65, 3);
+    if (settings.cubeOutline) {
+      ctx.strokeStyle = "rgba(255,255,255,.22)";
+      ctx.strokeRect(cell.x + insetX, cell.y + insetY, cell.w * 0.76, cell.h * 0.72);
+    }
   } else if (settings.style === "disco") {
-    const hue = (cell.x + cell.y + tick * 0.04) % 360;
+    const randomOffset = settings.discoRandomize ? (cell.x * 3 + cell.y * 5) : 0;
+    const hue = (randomOffset + (cell.x + cell.y) * (settings.discoUniformity / 120) + tick * 0.04) % 360;
     ctx.fillStyle = `hsl(${hue}, 95%, ${45 + (1 - cell.luminance / 255) * 35}%)`;
     ctx.beginPath();
     ctx.arc(centerX, centerY, Math.max(2, cell.w * 0.42), 0, Math.PI * 2);
@@ -575,7 +665,7 @@ function drawStyledCell(ctx, cell, settings, tick, width, height) {
       ctx.save();
       ctx.shadowBlur = 0;
       ctx.globalCompositeOperation = "screen";
-      ctx.globalAlpha *= 0.6;
+      ctx.globalAlpha *= 0.25 + (settings.effects.charChromaticAmount / 100) * 0.75;
       ctx.fillStyle = "rgb(255,42,127)";
       ctx.fillText(glyph, cell.x - 2, cell.y + cell.h);
       ctx.fillStyle = "rgb(33,212,253)";
@@ -603,6 +693,8 @@ function App() {
   const [activeLightId, setActiveLightId] = useState(null);
   const [maskStrokes, setMaskStrokes] = useState([]);
   const [crop, setCrop] = useState({ x: 0, y: 0, w: 1, h: 1, rotation: 0 });
+  const [cropHistory, setCropHistory] = useState([]);
+  const [cropFuture, setCropFuture] = useState([]);
   const [status, setStatus] = useState("Drop an image or video here");
   const [theme, setTheme] = useState("dark");
   const [modal, setModal] = useState(null);
@@ -615,6 +707,7 @@ function App() {
   const fileRef = useRef(null);
   const frameRef = useRef(0);
   const drawingStrokeRef = useRef(null);
+  const cropDragRef = useRef(null);
 
   const activeLightIndex = useMemo(() => lights.findIndex((light) => light.id === activeLightId), [activeLightId, lights]);
   const activeLight = activeLightIndex >= 0 ? lights[activeLightIndex] : null;
@@ -653,6 +746,15 @@ function App() {
     setMaskStrokes([]);
     setCrop({ x: 0, y: 0, w: 1, h: 1, rotation: 0 });
     loadSource(createDemoDataUrl(id), `Demo ${String(id).padStart(2, "0")}`);
+  }, [loadSource]);
+
+  const loadVideoDemoPreset = useCallback((id) => {
+    const seed = 100 + id;
+    setDemoSeed(seed);
+    setMaskStrokes([]);
+    setCrop({ x: 0, y: 0, w: 1, h: 1, rotation: 0 });
+    setSettings((current) => ({ ...current, animated: true, animationStyle: id === 1 ? "wave" : id === 2 ? "cascade-lr" : "pulse" }));
+    loadSource(createDemoDataUrl(seed), `Video Demo ${String(id).padStart(2, "0")}`);
   }, [loadSource]);
 
   const loadBackgroundPreset = useCallback((id) => {
@@ -710,13 +812,68 @@ function App() {
     setStatus("Light deleted");
   }, [activeLight]);
 
-  const updateCrop = useCallback((key, value) => {
+  const commitCrop = useCallback((nextCrop) => {
     setCrop((current) => {
-      const next = { ...current, [key]: value };
-      if (key === "x") next.w = Math.min(next.w, 1 - next.x);
-      if (key === "y") next.h = Math.min(next.h, 1 - next.y);
-      return next;
+      setCropHistory((history) => [...history.slice(-19), current]);
+      setCropFuture([]);
+      return sanitizeCrop(typeof nextCrop === "function" ? nextCrop(current) : nextCrop);
     });
+  }, []);
+
+  const updateCrop = useCallback((key, value) => {
+    commitCrop((current) => ({ ...current, [key]: value }));
+  }, [commitCrop]);
+
+  const undoCrop = useCallback(() => {
+    setCropHistory((history) => {
+      const previous = history[history.length - 1];
+      if (!previous) return history;
+      setCropFuture((future) => [crop, ...future].slice(0, 20));
+      setCrop(previous);
+      return history.slice(0, -1);
+    });
+  }, [crop]);
+
+  const redoCrop = useCallback(() => {
+    setCropFuture((future) => {
+      const next = future[0];
+      if (!next) return future;
+      setCropHistory((history) => [...history.slice(-19), crop]);
+      setCrop(next);
+      return future.slice(1);
+    });
+  }, [crop]);
+
+  const startCropDrag = useCallback((event, handle) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const surface = event.currentTarget.closest("[data-crop-surface]");
+    if (!surface) return;
+    cropDragRef.current = {
+      handle,
+      rect: surface.getBoundingClientRect(),
+      startCrop: crop
+    };
+    setCropHistory((history) => [...history.slice(-19), crop]);
+    setCropFuture([]);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }, [crop]);
+
+  const moveCropDrag = useCallback((event) => {
+    const drag = cropDragRef.current;
+    if (!drag) return;
+    const point = {
+      x: clamp((event.clientX - drag.rect.left) / drag.rect.width, 0, 1),
+      y: clamp((event.clientY - drag.rect.top) / drag.rect.height, 0, 1)
+    };
+    setCrop(cropFromHandle(drag.startCrop, point, drag.handle));
+  }, []);
+
+  const finishCropDrag = useCallback((event) => {
+    if (!cropDragRef.current) return;
+    cropDragRef.current = null;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    setStatus("Crop adjusted");
   }, []);
 
   const handleCanvasPointerDown = useCallback((event) => {
@@ -949,8 +1106,10 @@ function App() {
     const frameCtx = frameCanvas.getContext("2d", { willReadFrequently: true });
     if (!frameCtx) throw new Error("GIF canvas unavailable");
 
-    for (let frame = 0; frame < 10; frame += 1) {
-      setStatus(`Exporting GIF... ${Math.round((frame / 10) * 100)}%`);
+    const frameTotal = Math.min(72, Math.max(2, Math.round(settings.exportDuration * settings.exportFps)));
+    const delay = Math.round(1000 / settings.exportFps);
+    for (let frame = 0; frame < frameTotal; frame += 1) {
+      setStatus(`Exporting GIF... ${Math.round((frame / frameTotal) * 100)}%`);
       draw(performance.now() + frame * 180);
       await nextAnimationFrame();
       frameCtx.clearRect(0, 0, frameCanvas.width, frameCanvas.height);
@@ -958,14 +1117,14 @@ function App() {
       const { data, width, height } = frameCtx.getImageData(0, 0, frameCanvas.width, frameCanvas.height);
       const palette = quantize(data, 256, { format: "rgb444" });
       const index = applyPalette(data, palette, "rgb444");
-      gif.writeFrame(index, width, height, { palette, delay: 110, repeat: 0 });
+      gif.writeFrame(index, width, height, { palette, delay, repeat: 0 });
     }
 
     gif.finish();
     downloadBlob(new Blob([gif.bytes()], { type: "image/gif" }), "ascii-magic.gif");
     setStatus("Exported GIF animation");
     setExporting(false);
-  }, [draw]);
+  }, [draw, settings.exportDuration, settings.exportFps]);
 
   const exportRecordedVideo = useCallback(async (canvas, format) => {
     if (!canvas.captureStream || typeof MediaRecorder === "undefined") {
@@ -991,7 +1150,8 @@ function App() {
 
     setExporting(true);
     setStatus("Recording animation... 0%");
-    const stream = canvas.captureStream(30);
+    const durationMs = settings.exportDuration * 1000;
+    const stream = canvas.captureStream(settings.exportFps);
     const chunks = [];
     const recorder = new MediaRecorder(stream, { mimeType });
     recorder.ondataavailable = (event) => {
@@ -1004,11 +1164,11 @@ function App() {
     const startedAt = performance.now();
     const renderLoop = (time) => {
       draw(time);
-      setStatus(`Recording animation... ${Math.min(99, Math.round(((time - startedAt) / 1800) * 100))}%`);
-      if (time - startedAt < 1800) requestAnimationFrame(renderLoop);
+      setStatus(`Recording animation... ${Math.min(99, Math.round(((time - startedAt) / durationMs) * 100))}%`);
+      if (time - startedAt < durationMs) requestAnimationFrame(renderLoop);
     };
     requestAnimationFrame(renderLoop);
-    await new Promise((resolve) => setTimeout(resolve, 1900));
+    await new Promise((resolve) => setTimeout(resolve, durationMs + 120));
     recorder.stop();
     await stopped;
     stream.getTracks().forEach((track) => track.stop());
@@ -1020,7 +1180,7 @@ function App() {
         : "MP4 unavailable; exported WebM fallback"
     );
     setExporting(false);
-  }, [draw]);
+  }, [draw, settings.exportDuration, settings.exportFps]);
 
   const exportCanvas = useCallback(async () => {
     const canvas = canvasRef.current;
@@ -1095,7 +1255,19 @@ function App() {
   }, []);
 
   const effectControls = useMemo(() => EFFECTS.map(([key, label]) => (
-    <ToggleControl key={key} label={label} checked={settings.effects[key]} onChange={(value) => updateEffect(key, value)} />
+    <React.Fragment key={key}>
+      <ToggleControl label={label} checked={settings.effects[key]} onChange={(value) => updateEffect(key, value)} />
+      {settings.effects[key] && EFFECT_AMOUNT_CONTROLS[key] ? (
+        <RangeControl
+          label={EFFECT_AMOUNT_CONTROLS[key]}
+          min={0}
+          max={100}
+          value={settings.effects[`${key}Amount`] ?? 50}
+          suffix="%"
+          onChange={(value) => updateEffect(`${key}Amount`, value)}
+        />
+      ) : null}
+    </React.Fragment>
   )), [settings.effects, updateEffect]);
 
   return (
@@ -1235,13 +1407,31 @@ function App() {
                         <Label className="text-sm font-medium">Demo gallery</Label>
                         <Badge variant="outline">{DEMO_PRESETS.length} presets</Badge>
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid max-h-48 grid-cols-3 gap-2 overflow-y-auto pr-1">
                         {DEMO_PRESETS.map((demo) => (
                           <Button
                             key={demo.id}
                             variant={demoSeed === demo.id ? "secondary" : "outline"}
                             size="sm"
                             onClick={() => loadDemoPreset(demo.id)}
+                          >
+                            {demo.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label className="text-sm font-medium">Video demos</Label>
+                        <Badge variant="outline">{VIDEO_DEMO_PRESETS.length} presets</Badge>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {VIDEO_DEMO_PRESETS.map((demo) => (
+                          <Button
+                            key={demo.id}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => loadVideoDemoPreset(demo.id)}
                           >
                             {demo.label}
                           </Button>
@@ -1277,6 +1467,8 @@ function App() {
                     <div className="grid grid-cols-2 gap-3">
                       <SelectControl label="Format" value={settings.exportFormat} onChange={(value) => updateSetting("exportFormat", value)} options={EXPORT_FORMATS} />
                       <SelectControl label="Resolution" value={settings.exportScale} onChange={(value) => updateSetting("exportScale", Number(value))} options={[["1", "1x"], ["2", "2x"], ["3", "3x"], ["4", "4x"]]} />
+                      <SelectControl label="Animation duration" value={settings.exportDuration} onChange={(value) => updateSetting("exportDuration", Number(value))} options={[["3", "3 seconds"], ["5", "5 seconds"], ["10", "10 seconds"], ["15", "15 seconds"]]} />
+                      <SelectControl label="Frame rate" value={settings.exportFps} onChange={(value) => updateSetting("exportFps", Number(value))} options={[["15", "15 fps"], ["20", "20 fps"], ["24", "24 fps"], ["30", "30 fps"], ["60", "60 fps"]]} />
                     </div>
                     <Button onClick={exportCanvas} disabled={exporting}>
                       <DownloadIcon data-icon="inline-start" />
@@ -1300,6 +1492,26 @@ function App() {
                   <ControlCard title="Render style" description="Character family, density, blend, and shape controls.">
                     <SelectControl label="Style" value={settings.style} onChange={(value) => updateSetting("style", value)} options={Object.entries(STYLE_LABELS)} />
                     {settings.style === "mosaic" && <SelectControl label="Tile Shape" value={settings.tileShape} onChange={(value) => updateSetting("tileShape", value)} options={[["square", "Square"], ["wide", "Wide"], ["tall", "Tall"]]} />}
+                    {settings.style === "3d" && (
+                      <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3">
+                        <Label className="text-sm font-medium">Cube controls</Label>
+                        <RangeControl label="Cell Size" min={4} max={60} value={settings.cubeCellSize} onChange={(value) => updateSetting("cubeCellSize", value)} />
+                        <RangeControl label="H. Spacing" min={0} max={24} value={settings.cubeHSpacing} onChange={(value) => updateSetting("cubeHSpacing", value)} />
+                        <RangeControl label="V. Spacing" min={0} max={24} value={settings.cubeVSpacing} onChange={(value) => updateSetting("cubeVSpacing", value)} />
+                        <RangeControl label="Top Shade" min={0} max={100} value={settings.cubeTopShade} suffix="%" onChange={(value) => updateSetting("cubeTopShade", value)} />
+                        <RangeControl label="Light Side" min={0} max={100} value={settings.cubeLightSide} suffix="%" onChange={(value) => updateSetting("cubeLightSide", value)} />
+                        <RangeControl label="Dark Side" min={0} max={100} value={settings.cubeDarkSide} suffix="%" onChange={(value) => updateSetting("cubeDarkSide", value)} />
+                        <ToggleControl label="Outline" checked={settings.cubeOutline} onChange={(value) => updateSetting("cubeOutline", value)} />
+                        <ToggleControl label="Flip Light" checked={settings.cubeFlipLight} onChange={(value) => updateSetting("cubeFlipLight", value)} />
+                      </div>
+                    )}
+                    {settings.style === "disco" && (
+                      <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3">
+                        <Label className="text-sm font-medium">Disco controls</Label>
+                        <RangeControl label="Uniformity" min={0} max={100} value={settings.discoUniformity} suffix="%" onChange={(value) => updateSetting("discoUniformity", value)} />
+                        <ToggleControl label="Pattern Randomize" checked={settings.discoRandomize} onChange={(value) => updateSetting("discoRandomize", value)} />
+                      </div>
+                    )}
                     <RangeControl label="Font Size" min={3} max={48} value={settings.fontSize} onChange={(value) => updateSetting("fontSize", value)} />
                     <SelectControl label="Character Set" value={settings.characterSet} onChange={(value) => setSettings((current) => ({ ...current, characterSet: value, characters: value === "custom" ? current.characters : CHAR_SETS[value] }))} options={[["standard", "Standard"], ["detailed", "Detailed"], ["minimal", "Minimal"], ["custom", "Custom"]]} />
                     <div className="flex flex-col gap-1.5">
@@ -1433,7 +1645,7 @@ function App() {
       </div>
 
       <Dialog open={Boolean(modal)} onOpenChange={(open) => !open && setModal(null)}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className={modal === "crop" ? "sm:max-w-4xl" : "sm:max-w-lg"}>
           {modal === "about" && (
             <>
               <DialogHeader>
@@ -1481,9 +1693,12 @@ function App() {
                 <DialogTitle>Crop & Rotate</DialogTitle>
                 <DialogDescription>Adjust the source frame before rendering.</DialogDescription>
               </DialogHeader>
-              <div className="relative aspect-video overflow-hidden rounded-lg border bg-[linear-gradient(90deg,transparent_32.8%,hsl(var(--border))_33%,transparent_33.2%,transparent_66.1%,hsl(var(--border))_66.3%,transparent_66.5%),linear-gradient(0deg,transparent_32.8%,hsl(var(--border))_33%,transparent_33.2%,transparent_66.1%,hsl(var(--border))_66.3%,transparent_66.5%)]">
+              <div
+                data-crop-surface
+                className="relative aspect-video overflow-hidden rounded-lg border bg-[linear-gradient(90deg,transparent_32.8%,hsl(var(--border))_33%,transparent_33.2%,transparent_66.1%,hsl(var(--border))_66.3%,transparent_66.5%),linear-gradient(0deg,transparent_32.8%,hsl(var(--border))_33%,transparent_33.2%,transparent_66.1%,hsl(var(--border))_66.3%,transparent_66.5%)]"
+              >
                 <div
-                  className="absolute border-2 border-primary bg-primary/10 shadow-[0_0_0_999px_rgba(0,0,0,.38)]"
+                  className="absolute cursor-move border-2 border-primary bg-primary/10 shadow-[0_0_0_999px_rgba(0,0,0,.38)]"
                   style={{
                     left: `${crop.x * 100}%`,
                     top: `${crop.y * 100}%`,
@@ -1491,11 +1706,24 @@ function App() {
                     height: `${crop.h * 100}%`,
                     transform: `rotate(${crop.rotation}deg)`
                   }}
+                  onPointerDown={(event) => startCropDrag(event, "move")}
+                  onPointerMove={moveCropDrag}
+                  onPointerUp={finishCropDrag}
+                  onPointerCancel={finishCropDrag}
                 >
-                  <span className="absolute -left-1 -top-1 size-2 rounded-full bg-primary" />
-                  <span className="absolute -right-1 -top-1 size-2 rounded-full bg-primary" />
-                  <span className="absolute -bottom-1 -left-1 size-2 rounded-full bg-primary" />
-                  <span className="absolute -bottom-1 -right-1 size-2 rounded-full bg-primary" />
+                  {CROP_HANDLES.map(([handle, label, x, y]) => (
+                    <button
+                      key={handle}
+                      type="button"
+                      aria-label={`Crop handle ${label}`}
+                      className="absolute size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border bg-primary shadow-sm"
+                      style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
+                      onPointerDown={(event) => startCropDrag(event, handle)}
+                      onPointerMove={moveCropDrag}
+                      onPointerUp={finishCropDrag}
+                      onPointerCancel={finishCropDrag}
+                    />
+                  ))}
                 </div>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -1506,6 +1734,14 @@ function App() {
                 <RangeControl label="Rotation" min={-180} max={180} value={crop.rotation} suffix="deg" onChange={(value) => updateCrop("rotation", value)} />
               </div>
               <DialogFooter>
+                <Button variant="outline" disabled={!cropHistory.length} onClick={undoCrop}>
+                  <Undo2Icon data-icon="inline-start" />
+                  Undo
+                </Button>
+                <Button variant="outline" disabled={!cropFuture.length} onClick={redoCrop}>
+                  <Redo2Icon data-icon="inline-start" />
+                  Redo
+                </Button>
                 <Button variant="outline" title="Rotate counter-clockwise" onClick={() => { updateCrop("rotation", crop.rotation - 90); setStatus("Rotated counter-clockwise"); }}>
                   <RotateCcwIcon data-icon="inline-start" />
                   Rotate left

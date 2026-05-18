@@ -8,7 +8,7 @@ goal:
   slug: "ascii-magic-parity"
   kind: specific
   tranche: "Discover the public ASCII Magic feature inventory and local repo shape, then implement successive safe verified slices until the local app reaches full user-visible feature parity."
-  status: active
+  status: done
   intake:
     original_request: "recreate https://www.ascii-magic.com/, full deature parity"
     interpreted_outcome: "A local app recreates the public ASCII Magic website and its user-visible workflows with feature parity."
@@ -61,7 +61,7 @@ visual_board:
     command: "npx goalbuddy extend github-projects"
     missing: []
 
-active_task: T007
+active_task: null
 
 tasks:
   - id: T001
@@ -397,7 +397,7 @@ tasks:
   - id: T007
     type: worker
     assignee: Worker
-    status: active
+    status: done
     reasoning_hint: default
     objective: "Close remaining public-surface parity gaps before final audit: larger demo/video gallery surface, animated export duration/FPS controls, cube/disco style-specific controls, effect intensity sliders, crop 8-handle undo/redo surface, and auxiliary feedback/about polish."
     inputs:
@@ -426,11 +426,36 @@ tasks:
       - "Need files outside allowed_files."
       - "Need proprietary public-site assets, credentials, paid services, destructive operations, or server-side encoders."
       - "Verification fails twice for the same underlying reason."
-    receipt: null
+    receipt:
+      result: done
+      full_outcome_complete: false
+      changed_files:
+        - "src/App.jsx"
+        - "src/ascii.js"
+        - "tests/app.test.jsx"
+        - "docs/goals/ascii-magic-parity/state.yaml"
+      commands:
+        - cmd: "npm run test -- tests/app.test.jsx"
+          status: pass
+        - cmd: "npm run test"
+          status: pass
+        - cmd: "npm run build"
+          status: pass
+        - cmd: "git diff --check"
+          status: pass
+      browser_checks:
+        - "Reloaded http://127.0.0.1:5174/ in the in-app browser."
+        - "Verified Source exposes Video demos, Animation duration, and Frame rate controls with no horizontal overflow."
+        - "Verified Finish exposes Glitch Amount after enabling Glitch."
+        - "Opened Crop / Rotate and verified 8 crop handles plus Undo/Redo in the DOM."
+        - "Verified no browser console errors during the final controls smoke path."
+      summary: "Expanded the source gallery to 31 generated image demos plus 3 video-demo presets, added animated export duration and FPS controls, added cube/disco style-specific controls, added inline intensity sliders for post-processing effects, and upgraded crop/rotate with 8 handles plus undo/redo."
+      remaining_parity_gaps:
+        - "Public site's proprietary curated media assets are represented by generated local demos rather than copied assets."
   - id: T999
     type: judge
     assignee: Judge
-    status: queued
+    status: done
     reasoning_hint: high
     objective: "Audit whether the local recreation satisfies full public ASCII Magic feature parity."
     inputs:
@@ -450,11 +475,36 @@ tasks:
       - "Feature inventory coverage map."
       - "Missing evidence."
       - "Next task if not complete."
-    receipt: null
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      coverage_map:
+        source_upload_paste_demo: "Covered by drag/drop/click/paste source handling, Inspire Me, 31 image demo controls, 3 video-demo controls, and background gallery controls."
+        exports: "Covered by PNG/JPG export, GIF encoder, MP4/WebM MediaRecorder fallback, resolution selector, duration selector, FPS selector, progress statuses, and fallback statuses."
+        video_playback: "Covered by video upload support, hidden video source, Play/Stop/Seek/Speed/FPS controls, and render-loop integration."
+        crop_rotate: "Covered by Crop / Rotate dialog, rotate left/right, save/cancel, rule-of-thirds surface, 8 handles, undo/redo, and crop state wired into canvas draw."
+        backgrounds_styles_characters_intensity: "Covered by public background modes, style list, mosaic/cube/disco extras, character set/custom/blend/opacity/invert/grid/randomize controls, and intensity sliders."
+        animation_lights_mask: "Covered by Animated ASCII toggle, distinct animation transforms, speed/intensity/randomness, up-to-4 light placement/editing/delete, and mask freehand/rect/ellipse drawing with overlay/invert/clear."
+        post_processing: "Covered by stackable post-FX toggles, inline amount sliders, color overlay controls, and render passes for CRT/chromatic/bloom/glitch/RGB/blur/pixelate/halftone/grain/dust/sparkles."
+        chrome_feedback_responsive: "Covered by theme/menu/about/bug/feature/changelog surfaces, shadcn responsive layout, desktop browser checks, and automated UI tests."
+      missing_evidence:
+        - "The public site's exact proprietary curated demo media were not copied; local generated substitutes preserve workflows and control parity."
+      verification:
+        - "npm run test: pass"
+        - "npm run build: pass"
+        - "git diff --check: pass"
+        - "GoalBuddy state checker: pass"
+        - "Browser smoke at http://127.0.0.1:5174/: pass"
+      summary: "Final audit accepts feature parity for the local recreation's user-visible workflows, controls, render behavior, and export paths, with generated local media substituted for proprietary public demo assets."
 
 checks:
   dirty_fingerprint: unknown
   last_verification:
-    result: unknown
-    task: null
-    commands: []
+    result: pass
+    task: T999
+    commands:
+      - "npm run test"
+      - "npm run build"
+      - "git diff --check"
+      - "Browser smoke check at http://127.0.0.1:5174/"

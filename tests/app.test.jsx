@@ -46,4 +46,21 @@ describe("ASCII Magic app shell", () => {
     expect(screen.getByRole("dialog", { name: "Crop & Rotate" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
   });
+
+  it("exposes final public parity controls for video demos, timed exports, crop handles, and effect intensity", async () => {
+    render(<App />);
+
+    expect(screen.getByText("Video demos")).toBeInTheDocument();
+    expect(screen.getByText("Animation duration")).toBeInTheDocument();
+    expect(screen.getByText("Frame rate")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("tab", { name: "Finish" }));
+    await userEvent.click(screen.getByRole("switch", { name: "Glitch" }));
+    expect(screen.getByText("Glitch Amount")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Crop / Rotate" }));
+    expect(screen.getAllByLabelText(/Crop handle/i)).toHaveLength(8);
+    expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Redo" })).toBeInTheDocument();
+  });
 });
