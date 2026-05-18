@@ -1,0 +1,290 @@
+# GoalBuddy v2 state.yaml
+# Board truth lives here. goal.md is the editable charter; notes/ holds long receipts only.
+
+version: 2
+
+goal:
+  title: "Recreate ASCII Magic With Full Feature Parity"
+  slug: "ascii-magic-parity"
+  kind: specific
+  tranche: "Discover the public ASCII Magic feature inventory and local repo shape, then implement successive safe verified slices until the local app reaches full user-visible feature parity."
+  status: active
+  intake:
+    original_request: "recreate https://www.ascii-magic.com/, full deature parity"
+    interpreted_outcome: "A local app recreates the public ASCII Magic website and its user-visible workflows with feature parity."
+    input_shape: specific
+    audience: "Users who want the ASCII Magic experience recreated locally."
+    authority: requested
+    proof_type: demo
+    completion_proof: "A final audit demonstrates every public workflow discovered from ascii-magic.com working locally, with tests or browser checks for conversion, controls, exports/copy paths, error states, and responsive UI parity."
+    likely_misfire: "Building a visually similar page while missing conversion options, exports, copy/download paths, output quality, edge cases, or interaction details from the public site."
+    blind_spots_considered:
+      - "The source site must be inspected during /goal, not during goal-prep, to identify the real public feature inventory."
+      - "Feature parity may require matching UI behavior, image/text processing quality, output formats, responsiveness, accessibility, and error states."
+      - "Existing local app architecture and verification commands are unknown until Scout maps the repo."
+      - "The project instruction says to always commit in small batches."
+    existing_plan_facts:
+      - "User selected a local live GoalBuddy board."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: true
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+agents:
+  scout: installed
+  worker: installed
+  judge: installed
+
+visual_board:
+  selected: local
+  local:
+    status: live
+    url: "http://goalbuddy.localhost:41737/ascii-magic-parity/"
+    command: "npx goalbuddy board /Users/oussmustaine/Documents/a-art/docs/goals/ascii-magic-parity"
+  github_projects:
+    status: not_requested
+    url: null
+    command: "npx goalbuddy extend github-projects"
+    missing: []
+
+active_task: T004
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: default
+    objective: "Map the public ASCII Magic feature inventory and the local repo shape without implementing."
+    inputs:
+      - "https://www.ascii-magic.com/"
+      - "Current repository root: /Users/oussmustaine/Documents/a-art"
+      - "docs/goals/ascii-magic-parity/goal.md"
+    constraints:
+      - "Read-only."
+      - "Do not edit implementation files."
+      - "Inspect the public site only during /goal; goal-prep did not browse it."
+      - "Record concrete public workflows, controls, inputs, outputs, copy/export paths, responsive states, and error/empty states."
+      - "Map repo architecture, dependency manager, existing app entry points, and verification commands."
+      - "Preserve project instruction: always commit in small batches."
+    expected_output:
+      - "Public ASCII Magic feature inventory with evidence."
+      - "Repo map and likely implementation surface."
+      - "Verification commands and any missing dependency/setup notes."
+      - "Candidate implementation slices ordered by impact, confidence, reversibility, and verification strength."
+    receipt:
+      result: done
+      note: "notes/T001-scout.md"
+      summary: "Mapped ASCII Magic's public editor feature inventory from the live site and changelog; repo currently has no app code, only GoalBuddy files."
+      evidence:
+        - "https://www.ascii-magic.com/"
+        - "https://www.ascii-magic.com/changelog"
+        - "/Users/oussmustaine/Documents/a-art/docs/goals/ascii-magic-parity/notes/T001-scout.md"
+      spawned_tasks: []
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Review Scout evidence and choose the largest safe first implementation slice for full feature parity."
+    inputs:
+      - "T001 receipt"
+      - "docs/goals/ascii-magic-parity/goal.md"
+      - "docs/goals/ascii-magic-parity/state.yaml"
+    constraints:
+      - "Do not implement."
+      - "Do not approve a visual-only slice if conversion behavior or feature parity foundations are clearly required first."
+      - "Pick a bounded, reversible slice with explicit allowed_files, verify commands, and stop conditions."
+      - "Prefer a vertical slice that creates a working local experience over tiny helper-only work."
+    expected_output:
+      - "Decision: approved | blocked | needs_more_evidence."
+      - "Exact Worker objective."
+      - "allowed_files."
+      - "verify."
+      - "stop_if."
+      - "Deferred risks and follow-up task recommendations."
+    receipt:
+      result: done
+      decision: approved
+      full_outcome_complete: false
+      rationale: "The repo is empty, so the largest safe first slice is to scaffold a local web app and implement the static-image ASCII Magic editor foundation with real canvas rendering, full visible control surface, PNG/JPG export, responsive chrome, and smoke verification. Video/GIF/MP4, crop/mask/lights depth, and final parity hardening can follow on the same foundation."
+      worker_objective: "Scaffold a Vite web app and implement the core ASCII Magic static-image editor parity slice: upload/paste/demo source paths, canvas ASCII rendering, public control surface for background/characters/intensity/animation/lights/mask/post-FX, PNG/JPG export, theme/menu/about/feedback/changelog surfaces, responsive layout, and automated smoke checks."
+      allowed_files:
+        - "package.json"
+        - "package-lock.json"
+        - "index.html"
+        - "src/**"
+        - "tests/**"
+        - "playwright.config.ts"
+        - "README.md"
+        - ".gitignore"
+        - "components.json"
+        - "vite.config.js"
+        - "tsconfig.json"
+        - "jsconfig.json"
+        - "tailwind.config.js"
+        - "postcss.config.js"
+      verify:
+        - "npm install"
+        - "npm run build"
+        - "npm run test"
+      stop_if:
+        - "Need to modify files outside the allowed files."
+        - "The implementation needs paid services, credentials, or destructive operations."
+        - "A new dependency is required beyond the app/test scaffold and cannot be justified locally."
+        - "Verification fails twice for the same underlying reason."
+      deferred_risks:
+        - "Video playback/export and GIF/MP4 encoders may require a follow-up Worker slice."
+        - "Precise crop/mask/lights editing and every post-FX intensity slider may require a follow-up Worker slice."
+        - "Final parity must be audited against T001 feature inventory after implementation."
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Scaffold a Vite web app and implement the core ASCII Magic static-image editor parity slice: upload/paste/demo source paths, canvas ASCII rendering, public control surface for background/characters/intensity/animation/lights/mask/post-FX, PNG/JPG export, theme/menu/about/feedback/changelog surfaces, responsive layout, and automated smoke checks."
+    inputs:
+      - "T002 receipt"
+      - "T001 feature inventory and repo map"
+    constraints:
+      - "Write only inside allowed_files once Judge or PM fills them in."
+      - "Keep changes in a coherent, reviewable batch."
+      - "Follow existing repo style, framework, dependency manager, and design conventions."
+      - "Preserve project instruction: always commit in small batches when committing."
+    expected_output:
+      - "Implemented first parity slice."
+      - "Changed files."
+      - "Verification commands and results."
+      - "Remaining parity gaps."
+    allowed_files:
+      - "package.json"
+      - "package-lock.json"
+      - "index.html"
+      - "src/**"
+      - "tests/**"
+      - "playwright.config.ts"
+      - "README.md"
+      - ".gitignore"
+      - "components.json"
+      - "vite.config.js"
+      - "tsconfig.json"
+      - "jsconfig.json"
+      - "tailwind.config.js"
+      - "postcss.config.js"
+    verify:
+      - "npm install"
+      - "npm run build"
+      - "npm run test"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "The implementation needs paid services, credentials, or destructive operations."
+      - "A new dependency is required beyond the app/test scaffold and cannot be justified locally."
+      - "Verification fails twice for the same underlying reason."
+    receipt:
+      result: done
+      changed_files:
+        - ".gitignore"
+        - "components.json"
+        - "index.html"
+        - "jsconfig.json"
+        - "package-lock.json"
+        - "package.json"
+        - "src/App.jsx"
+        - "src/ascii.js"
+        - "src/components/ui/*"
+        - "src/lib/utils.js"
+        - "src/main.jsx"
+        - "src/styles.css"
+        - "tests/app.test.jsx"
+        - "tests/ascii.test.js"
+        - "tests/setup.js"
+        - "vite.config.js"
+      commands:
+        - cmd: "npm install"
+          status: pass
+        - cmd: "npx shadcn@latest init --preset nova --base radix --force --pointer"
+          status: pass
+        - cmd: "npx shadcn@latest add button card dialog dropdown-menu select slider switch badge separator textarea tabs scroll-area input label"
+          status: pass
+        - cmd: "npm run test"
+          status: pass
+        - cmd: "npm run build"
+          status: pass
+        - cmd: "git diff --check"
+          status: pass
+      browser_checks:
+        - "Loaded http://127.0.0.1:5174/ in the in-app browser."
+        - "Verified shadcn data-slot components render, tabs are present, upload/export controls are present, and no desktop horizontal overflow."
+        - "Selected Look tab and verified Render style, Background, and Intensity controls."
+        - "Set viewport to 390x844 and verified no horizontal overflow, canvas present, and Source/Look/Motion/Finish tabs present."
+      summary: "Scaffolded a Vite React app, initialized shadcn/ui radix-nova with Tailwind v4, implemented a canvas-based static-image ASCII editor foundation, rebuilt the rough UI with shadcn cards/tabs/dialog/menu/select/slider/switch controls, added PNG/JPG export and staged animated export states, and added unit/UI smoke tests."
+      remaining_parity_gaps:
+        - "Deep crop editing, mask drawing, and light placement are represented but need full direct-manipulation behavior."
+        - "GIF and MP4 export are staged but not encoded yet."
+        - "Video playback/rendering needs a dedicated follow-up slice."
+        - "Final parity audit against the full T001 inventory is still required."
+  - id: T004
+    type: pm
+    assignee: PM
+    status: active
+    reasoning_hint: default
+    objective: "After the first verified slice, update the board with the next largest safe parity implementation package or a targeted blocker-recovery task."
+    inputs:
+      - "T001 receipt"
+      - "T002 receipt"
+      - "T003 receipt"
+      - "Current dirty diff and verification results"
+    constraints:
+      - "Do not mark the goal complete after one slice if full feature parity is still incomplete."
+      - "Create or activate the next safe Worker task when local work can continue."
+      - "Use Judge only for phase, risk, ambiguity, rejected verification, or final completion boundaries."
+    expected_output:
+      - "Next active task selected or spawned."
+      - "Board updated with explicit allowed_files, verify, and stop_if for the next Worker if needed."
+      - "Receipt explaining why the next task is safe and useful."
+    receipt: null
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: queued
+    reasoning_hint: high
+    objective: "Audit whether the local recreation satisfies full public ASCII Magic feature parity."
+    inputs:
+      - "All done task receipts"
+      - "T001 public feature inventory"
+      - "Last verification results"
+      - "Current dirty diff"
+      - "Local app demo URL or artifact path"
+    constraints:
+      - "Do not implement."
+      - "Reject completion if required Worker work is still queued or active."
+      - "Reject completion if any discovered public workflow, control, conversion behavior, export/copy path, responsive state, or important error state remains unimplemented or unverified."
+      - "Reject stopping only because a slice needs owner input, credentials, production access, destructive operations, or policy decisions."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "Feature inventory coverage map."
+      - "Missing evidence."
+      - "Next task if not complete."
+    receipt: null
+
+checks:
+  dirty_fingerprint: unknown
+  last_verification:
+    result: unknown
+    task: null
+    commands: []
