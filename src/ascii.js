@@ -21,6 +21,25 @@ export const STYLE_LABELS = {
   disco: "Disco ✨"
 };
 
+export const POST_PROCESSING_PASS_KEYS = [
+  ["colorOverlay", "color-overlay"],
+  ["vignette", "vignette"],
+  ["scanLines", "scan-lines"],
+  ["crt", "crt"],
+  ["chromatic", "chromatic"],
+  ["bloom", "bloom"],
+  ["charBloom", "char-bloom"],
+  ["charChromatic", "char-chromatic"],
+  ["filmGrain", "film-grain"],
+  ["glitch", "glitch"],
+  ["rgbSplit", "rgb-split"],
+  ["blur", "blur"],
+  ["pixelate", "pixelate"],
+  ["halftone", "halftone"],
+  ["filmDust", "film-dust"],
+  ["sparkles", "sparkles"]
+];
+
 export function createDefaultSettings() {
   return {
     exportFormat: "png",
@@ -140,4 +159,81 @@ export function buildAsciiCells(imageData, width, height, settings = createDefau
 
 export function clamp(value, min, max) {
   return Math.max(min, Math.min(max, Number(value)));
+}
+
+export function resolvePostProcessingPlan(effects = {}) {
+  return POST_PROCESSING_PASS_KEYS
+    .filter(([key]) => Boolean(effects[key]))
+    .map(([, pass]) => pass);
+}
+
+export function computeAnimationTransform(cell, settings = createDefaultSettings(), tick = 0, width = 1, height = 1) {
+  if (!settings.animated) return { x: 0, y: 0, scale: 1, alpha: 1 };
+
+  const speed = Math.max(1, Number(settings.animationSpeed || 3000));
+  const progress = ((tick % speed) + speed) % speed / speed;
+  const intensity = Number(settings.animationIntensity || 0) / 100;
+  const randomness = Number(settings.animationRandomness || 0) / 100;
+  const jitter = Math.sin(cell.x * 12.9898 + cell.y * 78.233) * randomness;
+  const phase = progress * Math.PI * 2;
+  const normalizedX = clamp(cell.x / Math.max(1, width), 0, 1);
+  const normalizedY = clamp(cell.y / Math.max(1, height), 0, 1);
+
+  if (settings.animationStyle === "cascade-lr") {
+    const local = progress - normalizedX * 0.85;
+    return {
+      x: Math.sin((local + jitter * 0.08) * Math.PI) * 16 * intensity,
+      y: 0,
+      scale: 0.92 + clamp(local, 0, 1) * 0.12,
+      alpha: clamp(local * 2.2, 0.12, 1)
+    };
+  }
+
+  if (settings.animationStyle === "cascade-rl") {
+    const local = progress - (1 - normalizedX) * 0.85;
+    return {
+      x: -Math.sin((local + jitter * 0.08) * Math.PI) * 16 * intensity,
+      y: 0,
+      scale: 0.9 + clamp(local, 0, 1) * 0.14,
+      alpha: clamp(local * 2.1, 0.12, 1)
+    };
+  }
+
+  if (settings.animationStyle === "cascade-tb") {
+    const local = progress - normalizedY * 0.85;
+    return {
+      x: 0,
+      y: Math.sin((local + jitter * 0.08) * Math.PI) * 18 * intensity,
+      scale: 0.9 + clamp(local, 0, 1) * 0.16,
+      alpha: clamp(local * 2.15, 0.1, 1)
+    };
+  }
+
+  if (settings.animationStyle === "reveal") {
+    const threshold = progress * 1.25;
+    const local = threshold - (normalizedX * 0.58 + normalizedY * 0.42);
+    return {
+      x: 0,
+      y: (1 - clamp(local * 3, 0, 1)) * 18 * intensity,
+      scale: 0.86 + clamp(local * 2.2, 0, 1) * 0.14,
+      alpha: clamp(local * 3.5, 0.08, 1)
+    };
+  }
+
+  if (settings.animationStyle === "pulse") {
+    const pulse = Math.sin(phase + (cell.luminance / 255) * Math.PI + jitter) * intensity;
+    return {
+      x: 0,
+      y: 0,
+      scale: 1 + pulse * 0.16,
+      alpha: clamp(0.72 + pulse * 0.28, 0.34, 1)
+    };
+  }
+
+  return {
+    x: Math.cos(phase + cell.y * 0.018 + jitter) * 4 * intensity,
+    y: Math.sin(phase + cell.x * 0.025 + cell.y * 0.018 + jitter) * 22 * intensity,
+    scale: 1,
+    alpha: 1
+  };
 }

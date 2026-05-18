@@ -61,7 +61,7 @@ visual_board:
     command: "npx goalbuddy extend github-projects"
     missing: []
 
-active_task: T006
+active_task: T007
 
 tasks:
   - id: T001
@@ -335,7 +335,7 @@ tasks:
   - id: T006
     type: worker
     assignee: Worker
-    status: active
+    status: done
     reasoning_hint: default
     objective: "Implement the remaining visual parity slice: distinct animation styles and real post-processing render passes for CRT, chromatic/RGB split, glitch, blur, pixelate, halftone, and stronger bloom behavior, with tests and browser checks."
     inputs:
@@ -364,6 +364,67 @@ tasks:
     stop_if:
       - "Need files outside allowed_files."
       - "Rendering changes require paid services, credentials, or server-side encoders."
+      - "Verification fails twice for the same underlying reason."
+    receipt:
+      result: done
+      full_outcome_complete: false
+      changed_files:
+        - "src/App.jsx"
+        - "src/ascii.js"
+        - "tests/ascii.test.js"
+        - "docs/goals/ascii-magic-parity/state.yaml"
+      commands:
+        - cmd: "npm run test -- tests/ascii.test.js"
+          status: pass
+        - cmd: "npm run test"
+          status: pass
+        - cmd: "npm run build"
+          status: pass
+        - cmd: "git diff --check"
+          status: pass
+      browser_checks:
+        - "Reloaded http://127.0.0.1:5174/ in the in-app browser."
+        - "Enabled CRT Curvature, RGB Split, Pixelate, and Halftone in Finish."
+        - "Verified canvas dimensions are populated, toggles are checked, no horizontal overflow, and no console errors."
+        - "Captured effects QA screenshot at /tmp/ascii-magic-parity-t006-effects.png."
+      summary: "Added tested animation transform primitives for wave/cascade/reveal/pulse styles and mapped all public post-processing toggles to actual render passes. Wired CRT, chromatic/RGB split, bloom, glitch, blur, pixelate, halftone, char chromatic, and related passes into the canvas renderer."
+      remaining_parity_gaps:
+        - "Public inventory still calls for 31 image demos and 3 video demos; local gallery is smaller."
+        - "Animated export duration/FPS controls are missing from the UI."
+        - "Crop editor needs 8 visible handles plus undo/redo/direct manipulation polish."
+        - "Cube/disco style-specific controls and effect-specific inline intensity sliders are still incomplete."
+        - "Final parity audit against T001 is still required."
+  - id: T007
+    type: worker
+    assignee: Worker
+    status: active
+    reasoning_hint: default
+    objective: "Close remaining public-surface parity gaps before final audit: larger demo/video gallery surface, animated export duration/FPS controls, cube/disco style-specific controls, effect intensity sliders, crop 8-handle undo/redo surface, and auxiliary feedback/about polish."
+    inputs:
+      - "T001 public feature inventory"
+      - "T006 receipt"
+      - "Current app implementation"
+    constraints:
+      - "Keep shadcn/radix-nova UI patterns."
+      - "Preserve the existing canvas rendering foundation."
+      - "Do not claim full parity until T999 audit passes."
+      - "Follow project instruction: always commit in small batches when committing."
+    expected_output:
+      - "Public source/export/crop/style/effect auxiliary surfaces match the discovered inventory more closely."
+      - "Updated tests proving the newly exposed parity controls exist."
+      - "Verification commands and browser checks."
+    allowed_files:
+      - "src/**"
+      - "tests/**"
+      - "docs/goals/ascii-magic-parity/state.yaml"
+    verify:
+      - "npm run test"
+      - "npm run build"
+      - "git diff --check"
+      - "Browser smoke check at http://127.0.0.1:5174/"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "Need proprietary public-site assets, credentials, paid services, destructive operations, or server-side encoders."
       - "Verification fails twice for the same underlying reason."
     receipt: null
   - id: T999

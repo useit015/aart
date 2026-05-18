@@ -23,7 +23,9 @@ import {
   STYLE_LABELS,
   buildAsciiCells,
   clamp,
-  createDefaultSettings
+  computeAnimationTransform,
+  createDefaultSettings,
+  resolvePostProcessingPlan
 } from "./ascii.js";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -346,8 +348,114 @@ function ControlCard({ title, description, children }) {
   );
 }
 
-function applyImageEffects(ctx, width, height, settings) {
+function snapshotCanvas(ctx, width, height) {
+  const snapshot = document.createElement("canvas");
+  snapshot.width = width;
+  snapshot.height = height;
+  snapshot.getContext("2d").drawImage(ctx.canvas, 0, 0, width, height);
+  return snapshot;
+}
+
+function drawTintedSnapshot(ctx, snapshot, width, height, dx, color, alpha) {
+  const tint = document.createElement("canvas");
+  tint.width = width;
+  tint.height = height;
+  const tintCtx = tint.getContext("2d");
+  tintCtx.drawImage(snapshot, 0, 0);
+  tintCtx.globalCompositeOperation = "source-atop";
+  tintCtx.fillStyle = color;
+  tintCtx.fillRect(0, 0, width, height);
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(tint, dx, 0, width, height);
+  ctx.restore();
+}
+
+function applyPixelate(ctx, snapshot, width, height) {
+  const pixelCanvas = document.createElement("canvas");
+  const pixelCtx = pixelCanvas.getContext("2d");
+  const scale = 0.12;
+  pixelCanvas.width = Math.max(1, Math.round(width * scale));
+  pixelCanvas.height = Math.max(1, Math.round(height * scale));
+  pixelCtx.imageSmoothingEnabled = false;
+  pixelCtx.drawImage(snapshot, 0, 0, pixelCanvas.width, pixelCanvas.height);
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.globalAlpha = 0.72;
+  ctx.drawImage(pixelCanvas, 0, 0, pixelCanvas.width, pixelCanvas.height, 0, 0, width, height);
+  ctx.restore();
+}
+
+function applyHalftone(ctx, width, height) {
+  ctx.save();
+  ctx.globalCompositeOperation = "multiply";
+  for (let y = 0; y < height; y += 18) {
+    for (let x = 0; x < width; x += 18) {
+      const radius = 1.5 + ((x * 7 + y * 11) % 9);
+      ctx.fillStyle = `rgba(0,0,0,${0.12 + radius / 80})`;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function applyGlitch(ctx, snapshot, width, height, tick) {
+  ctx.save();
+  for (let i = 0; i < 10; i += 1) {
+    const sliceHeight = 6 + ((i * 17) % 28);
+    const y = (i * 71 + Math.floor(tick / 35)) % height;
+    const offset = ((i % 2 ? -1 : 1) * (8 + ((i * 13) % 24)));
+    ctx.globalAlpha = 0.82;
+    ctx.drawImage(snapshot, 0, y, width, sliceHeight, offset, y, width, sliceHeight);
+  }
+  ctx.restore();
+}
+
+function applyCrt(ctx, width, height) {
+  ctx.save();
+  ctx.fillStyle = "rgba(255,255,255,.05)";
+  for (let y = 0; y < height; y += 4) ctx.fillRect(0, y, width, 1);
+  const curve = ctx.createRadialGradient(width / 2, height / 2, width * 0.1, width / 2, height / 2, width * 0.78);
+  curve.addColorStop(0, "rgba(255,255,255,.04)");
+  curve.addColorStop(0.75, "rgba(0,0,0,.02)");
+  curve.addColorStop(1, "rgba(0,0,0,.32)");
+  ctx.fillStyle = curve;
+  ctx.fillRect(0, 0, width, height);
+  ctx.restore();
+}
+
+function applyImageEffects(ctx, width, height, settings, tick = 0) {
   const effects = settings.effects;
+  const passes = resolvePostProcessingPlan(effects);
+  if (!passes.length) return;
+  const snapshot = snapshotCanvas(ctx, width, height);
+
+  if (passes.includes("pixelate")) applyPixelate(ctx, snapshot, width, height);
+  if (passes.includes("blur")) {
+    ctx.save();
+    ctx.globalAlpha = 0.58;
+    ctx.filter = "blur(2.6px)";
+    ctx.drawImage(snapshot, 0, 0, width, height);
+    ctx.restore();
+  }
+  if (passes.includes("bloom")) {
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    ctx.globalAlpha = 0.42;
+    ctx.filter = "blur(10px) saturate(1.35)";
+    ctx.drawImage(snapshot, 0, 0, width, height);
+    ctx.restore();
+  }
+  if (passes.includes("chromatic") || passes.includes("rgb-split")) {
+    const amount = passes.includes("rgb-split") ? 7 : 3;
+    drawTintedSnapshot(ctx, snapshot, width, height, -amount, "rgb(255,40,100)", 0.38);
+    drawTintedSnapshot(ctx, snapshot, width, height, amount, "rgb(30,210,255)", 0.34);
+  }
+  if (passes.includes("glitch")) applyGlitch(ctx, snapshot, width, height, tick);
+
   if (effects.colorOverlay) {
     ctx.save();
     ctx.globalAlpha = effects.colorOpacity / 100;
@@ -367,6 +475,8 @@ function applyImageEffects(ctx, width, height, settings) {
     ctx.fillStyle = "rgba(0,0,0,.2)";
     for (let y = 0; y < height; y += 6) ctx.fillRect(0, y, width, 1);
   }
+  if (passes.includes("crt")) applyCrt(ctx, width, height);
+  if (passes.includes("halftone")) applyHalftone(ctx, width, height);
   if (effects.filmGrain || effects.filmDust) {
     ctx.fillStyle = effects.filmDust ? "rgba(255,255,255,.28)" : "rgba(255,255,255,.12)";
     for (let i = 0; i < (effects.filmDust ? 120 : 800); i += 1) {
@@ -385,11 +495,12 @@ function pickRandomGlyph(cell, settings) {
   return chars[index] || cell.glyph;
 }
 
-function drawStyledCell(ctx, cell, settings, tick) {
+function drawStyledCell(ctx, cell, settings, tick, width, height) {
   const centerX = cell.x + cell.w / 2;
   const centerY = cell.y + cell.h / 2;
+  const transform = computeAnimationTransform(cell, settings, tick, width, height);
   ctx.save();
-  ctx.globalAlpha = settings.charOpacity / 100;
+  ctx.globalAlpha = (settings.charOpacity / 100) * transform.alpha;
   ctx.globalCompositeOperation = settings.blendMode;
   ctx.fillStyle = cell.color;
   ctx.strokeStyle = cell.color;
@@ -398,8 +509,9 @@ function drawStyledCell(ctx, cell, settings, tick) {
   ctx.shadowBlur = settings.effects.charBloom ? 8 : settings.effects.bloom ? 14 : 0;
 
   if (settings.animated) {
-    const offset = Math.sin(tick / settings.animationSpeed + cell.x * 0.025 + cell.y * 0.018) * settings.animationIntensity * 0.03;
-    ctx.translate(0, offset);
+    ctx.translate(centerX + transform.x, centerY + transform.y);
+    ctx.scale(transform.scale, transform.scale);
+    ctx.translate(-centerX, -centerY);
   }
 
   if (settings.style === "dots") {
@@ -458,7 +570,20 @@ function drawStyledCell(ctx, cell, settings, tick) {
     ctx.fill();
   } else {
     ctx.font = `${settings.fontSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-    ctx.fillText(settings.randomize ? pickRandomGlyph(cell, settings) : cell.glyph, cell.x, cell.y + cell.h);
+    const glyph = settings.randomize ? pickRandomGlyph(cell, settings) : cell.glyph;
+    if (settings.effects.charChromatic) {
+      ctx.save();
+      ctx.shadowBlur = 0;
+      ctx.globalCompositeOperation = "screen";
+      ctx.globalAlpha *= 0.6;
+      ctx.fillStyle = "rgb(255,42,127)";
+      ctx.fillText(glyph, cell.x - 2, cell.y + cell.h);
+      ctx.fillStyle = "rgb(33,212,253)";
+      ctx.fillText(glyph, cell.x + 2, cell.y + cell.h);
+      ctx.restore();
+    }
+    ctx.fillStyle = cell.color;
+    ctx.fillText(glyph, cell.x, cell.y + cell.h);
   }
   ctx.restore();
 }
@@ -713,7 +838,7 @@ function App() {
     }
 
     const data = sourceCtx.getImageData(0, 0, width, height);
-    buildAsciiCells(data, width, height, settings).forEach((cell) => drawStyledCell(ctx, cell, settings, tick));
+    buildAsciiCells(data, width, height, settings).forEach((cell) => drawStyledCell(ctx, cell, settings, tick, width, height));
 
     if (settings.dotGrid) {
       ctx.fillStyle = "rgba(255,255,255,.18)";
@@ -756,7 +881,7 @@ function App() {
       ctx.restore();
     }
 
-    applyImageEffects(ctx, width, height, settings);
+    applyImageEffects(ctx, width, height, settings, tick);
   }, [activeLightId, crop, lights, maskStrokes, settings, sourceKind]);
 
   useEffect(() => {
