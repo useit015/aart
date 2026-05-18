@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { GIFEncoder, applyPalette, quantize } from "gifenc";
 import {
   BugIcon,
   CropIcon,
@@ -9,15 +10,19 @@ import {
   MenuIcon,
   MoonIcon,
   PlayIcon,
+  RotateCcwIcon,
+  RotateCwIcon,
   SparklesIcon,
   SquareIcon,
   SunIcon,
+  Trash2Icon,
   WandSparklesIcon
 } from "lucide-react";
 import {
   CHAR_SETS,
   STYLE_LABELS,
   buildAsciiCells,
+  clamp,
   createDefaultSettings
 } from "./ascii.js";
 import { Badge } from "@/components/ui/badge";
@@ -93,7 +98,21 @@ const DEMO_PALETTES = [
   ["#ff2a7f", "#21d4fd", "#10101a"],
   ["#fed766", "#2ab7ca", "#2d3047"],
   ["#f25f5c", "#70c1b3", "#111111"],
-  ["#b8f2e6", "#ffa69e", "#1b1b32"]
+  ["#b8f2e6", "#ffa69e", "#1b1b32"],
+  ["#9b5de5", "#00f5d4", "#11151c"],
+  ["#f15bb5", "#fee440", "#141414"]
+];
+
+const DEMO_PRESETS = Array.from({ length: 6 }, (_, index) => ({
+  id: index + 1,
+  label: `Demo ${String(index + 1).padStart(2, "0")}`
+}));
+
+const BACKGROUND_PRESETS = [
+  { id: 1, label: "Background 01", colors: ["#101820", "#fee715", "#1f7a8c"] },
+  { id: 2, label: "Background 02", colors: ["#0b132b", "#5bc0be", "#fca311"] },
+  { id: 3, label: "Background 03", colors: ["#2b2d42", "#ef233c", "#8d99ae"] },
+  { id: 4, label: "Background 04", colors: ["#031d44", "#ff7d00", "#f9c74f"] }
 ];
 
 function isCanvasRuntimeAvailable() {
@@ -139,6 +158,128 @@ function createDemoDataUrl(seed = 0) {
   ctx.font = "700 132px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.fillText("MAGIC", 84, 338);
   return canvas.toDataURL("image/png");
+}
+
+function createBackgroundDataUrl(seed = 0) {
+  const preset = BACKGROUND_PRESETS[(seed - 1 + BACKGROUND_PRESETS.length) % BACKGROUND_PRESETS.length] || BACKGROUND_PRESETS[0];
+  const [a, b, c] = preset.colors;
+  if (!isCanvasRuntimeAvailable()) {
+    return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop stop-color="${a}"/><stop offset=".55" stop-color="${b}"/><stop offset="1" stop-color="${c}"/></linearGradient></defs><rect width="1200" height="760" fill="url(#g)"/></svg>`)}`;
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 1200;
+  canvas.height = 760;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  gradient.addColorStop(0, a);
+  gradient.addColorStop(0.5, b);
+  gradient.addColorStop(1, c);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.globalCompositeOperation = "screen";
+  for (let i = 0; i < 42; i += 1) {
+    const x = (i * 149 + seed * 83) % canvas.width;
+    const y = (i * 89 + seed * 59) % canvas.height;
+    const radius = 48 + ((i * 17 + seed * 23) % 160);
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    glow.addColorStop(0, "rgba(255,255,255,.34)");
+    glow.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+  }
+  ctx.globalCompositeOperation = "source-over";
+  return canvas.toDataURL("image/png");
+}
+
+function downloadBlob(blob, filename) {
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.href = url;
+  link.download = filename;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 500);
+}
+
+function getCanvasPoint(event, canvas) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: clamp((event.clientX - rect.left) / rect.width, 0, 1),
+    y: clamp((event.clientY - rect.top) / rect.height, 0, 1)
+  };
+}
+
+function drawCroppedSource(ctx, source, sourceWidth, sourceHeight, width, height, crop) {
+  const sx = clamp(crop.x, 0, 0.95) * sourceWidth;
+  const sy = clamp(crop.y, 0, 0.95) * sourceHeight;
+  const sw = clamp(crop.w, 0.05, 1 - crop.x) * sourceWidth;
+  const sh = clamp(crop.h, 0.05, 1 - crop.y) * sourceHeight;
+  ctx.save();
+  ctx.translate(width / 2, height / 2);
+  ctx.rotate(((crop.rotation || 0) * Math.PI) / 180);
+  ctx.drawImage(source, sx, sy, sw, sh, -width / 2, -height / 2, width, height);
+  ctx.restore();
+}
+
+function drawMaskGeometry(ctx, width, height, strokes, mode = "fill") {
+  const drawDefault = () => {
+    ctx.beginPath();
+    ctx.ellipse(width * 0.5, height * 0.5, width * 0.32, height * 0.34, 0, 0, Math.PI * 2);
+    mode === "stroke" ? ctx.stroke() : ctx.fill();
+  };
+
+  if (!strokes.length) {
+    drawDefault();
+    return;
+  }
+
+  strokes.forEach((stroke) => {
+    const points = stroke.points || [];
+    if (!points.length) return;
+    const first = points[0];
+    const last = points[points.length - 1] || first;
+    const x = first.x * width;
+    const y = first.y * height;
+    const endX = last.x * width;
+    const endY = last.y * height;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = stroke.brushSize || 30;
+
+    if (stroke.tool === "rect") {
+      const rectX = Math.min(x, endX);
+      const rectY = Math.min(y, endY);
+      const rectW = Math.max(Math.abs(endX - x), stroke.brushSize || 30);
+      const rectH = Math.max(Math.abs(endY - y), stroke.brushSize || 30);
+      mode === "stroke" ? ctx.strokeRect(rectX, rectY, rectW, rectH) : ctx.fillRect(rectX, rectY, rectW, rectH);
+      return;
+    }
+
+    if (stroke.tool === "ellipse") {
+      ctx.beginPath();
+      ctx.ellipse(
+        (x + endX) / 2,
+        (y + endY) / 2,
+        Math.max(Math.abs(endX - x) / 2, (stroke.brushSize || 30) / 2),
+        Math.max(Math.abs(endY - y) / 2, (stroke.brushSize || 30) / 2),
+        0,
+        0,
+        Math.PI * 2
+      );
+      mode === "stroke" ? ctx.stroke() : ctx.fill();
+      return;
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    points.slice(1).forEach((point) => ctx.lineTo(point.x * width, point.y * height));
+    ctx.stroke();
+  });
+}
+
+async function nextAnimationFrame() {
+  await new Promise((resolve) => requestAnimationFrame(resolve));
 }
 
 function SelectControl({ label, value, onChange, options }) {
@@ -326,6 +467,17 @@ function App() {
   const [settings, setSettings] = useState(createDefaultSettings);
   const [sourceUrl, setSourceUrl] = useState("");
   const [sourceName, setSourceName] = useState("");
+  const [sourceKind, setSourceKind] = useState("image");
+  const [videoUrl, setVideoUrl] = useState("");
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [seek, setSeek] = useState(0);
+  const [duration, setDuration] = useState(100);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [backgroundUrl, setBackgroundUrl] = useState("");
+  const [lights, setLights] = useState([]);
+  const [activeLightId, setActiveLightId] = useState(null);
+  const [maskStrokes, setMaskStrokes] = useState([]);
+  const [crop, setCrop] = useState({ x: 0, y: 0, w: 1, h: 1, rotation: 0 });
   const [status, setStatus] = useState("Drop an image or video here");
   const [theme, setTheme] = useState("dark");
   const [modal, setModal] = useState(null);
@@ -333,8 +485,14 @@ function App() {
   const [demoSeed, setDemoSeed] = useState(0);
   const canvasRef = useRef(null);
   const sourceImageRef = useRef(null);
+  const backgroundImageRef = useRef(null);
+  const videoRef = useRef(null);
   const fileRef = useRef(null);
   const frameRef = useRef(0);
+  const drawingStrokeRef = useRef(null);
+
+  const activeLightIndex = useMemo(() => lights.findIndex((light) => light.id === activeLightId), [activeLightId, lights]);
+  const activeLight = activeLightIndex >= 0 ? lights[activeLightIndex] : null;
 
   const updateSetting = useCallback((key, value) => {
     setSettings((current) => ({ ...current, [key]: value }));
@@ -344,9 +502,18 @@ function App() {
     setSettings((current) => ({ ...current, effects: { ...current.effects, [key]: value } }));
   }, []);
 
-  const loadSource = useCallback((url, name = "Custom source") => {
+  const loadSource = useCallback((url, name = "Custom source", kind = "image") => {
     setSourceUrl(url);
     setSourceName(name);
+    setSourceKind(kind);
+    if (kind === "video") {
+      sourceImageRef.current = null;
+      setVideoUrl(url);
+    } else {
+      setVideoUrl("");
+      setIsPlaying(false);
+      setSeek(0);
+    }
     setStatus(`${name} loaded`);
   }, []);
 
@@ -356,13 +523,26 @@ function App() {
     loadSource(createDemoDataUrl(nextSeed), "Demo");
   }, [demoSeed, loadSource]);
 
+  const loadDemoPreset = useCallback((id) => {
+    setDemoSeed(id);
+    setMaskStrokes([]);
+    setCrop({ x: 0, y: 0, w: 1, h: 1, rotation: 0 });
+    loadSource(createDemoDataUrl(id), `Demo ${String(id).padStart(2, "0")}`);
+  }, [loadSource]);
+
+  const loadBackgroundPreset = useCallback((id) => {
+    setBackgroundUrl(createBackgroundDataUrl(id));
+    setSettings((current) => ({ ...current, backgroundMode: "original", backgroundOpacity: 100 }));
+    setStatus(`Background ${String(id).padStart(2, "0")} applied`);
+  }, []);
+
   const handleFile = useCallback((file) => {
     if (!file) return;
     if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
       setStatus("Unsupported file type");
       return;
     }
-    loadSource(URL.createObjectURL(file), file.name || "Upload");
+    loadSource(URL.createObjectURL(file), file.name || "Upload", file.type.startsWith("video/") ? "video" : "image");
   }, [loadSource]);
 
   const handlePaste = useCallback((event) => {
@@ -370,15 +550,115 @@ function App() {
     if (item) handleFile(item.getAsFile());
   }, [handleFile]);
 
+  const addLight = useCallback((point = { x: 0.5, y: 0.45 }) => {
+    if (lights.length >= 4) {
+      setStatus("Maximum of 4 lights reached");
+      return;
+    }
+    const lightNumber = lights.length + 1;
+    const id = `light-${Date.now()}-${lightNumber}`;
+    const nextLight = {
+      id,
+      x: point.x,
+      y: point.y,
+      radius: 30,
+      intensity: 80,
+      blur: 20,
+      rotation: 0
+    };
+    setLights((current) => [...current, nextLight]);
+    setActiveLightId(id);
+    setSettings((current) => ({ ...current, lights: true }));
+    setStatus(`Light ${lightNumber} active`);
+  }, [lights.length]);
+
+  const updateActiveLight = useCallback((key, value) => {
+    setLights((current) => current.map((light) => (
+      light.id === activeLightId ? { ...light, [key]: value } : light
+    )));
+  }, [activeLightId]);
+
+  const deleteActiveLight = useCallback(() => {
+    if (!activeLight) return;
+    setLights((current) => current.filter((light) => light.id !== activeLight.id));
+    setActiveLightId(null);
+    setStatus("Light deleted");
+  }, [activeLight]);
+
+  const updateCrop = useCallback((key, value) => {
+    setCrop((current) => {
+      const next = { ...current, [key]: value };
+      if (key === "x") next.w = Math.min(next.w, 1 - next.x);
+      if (key === "y") next.h = Math.min(next.h, 1 - next.y);
+      return next;
+    });
+  }, []);
+
+  const handleCanvasPointerDown = useCallback((event) => {
+    const canvas = canvasRef.current;
+    if (!canvas || (!settings.mask && !settings.lights)) return;
+    event.preventDefault();
+    const point = getCanvasPoint(event, canvas);
+
+    if (settings.mask) {
+      const id = `mask-${Date.now()}`;
+      drawingStrokeRef.current = id;
+      setMaskStrokes((current) => [...current, {
+        id,
+        tool: settings.maskTool,
+        brushSize: settings.brushSize,
+        points: [point]
+      }]);
+      setStatus("Draw Mask");
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      return;
+    }
+
+    if (settings.lights) {
+      const nearest = lights.find((light) => Math.hypot(light.x - point.x, light.y - point.y) < 0.06);
+      if (nearest) {
+        setActiveLightId(nearest.id);
+        setStatus(`Light ${lights.findIndex((light) => light.id === nearest.id) + 1} active`);
+      } else {
+        addLight(point);
+      }
+    }
+  }, [addLight, lights, settings.brushSize, settings.lights, settings.mask, settings.maskTool]);
+
+  const handleCanvasPointerMove = useCallback((event) => {
+    if (!drawingStrokeRef.current || !settings.mask) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const point = getCanvasPoint(event, canvas);
+    setMaskStrokes((current) => current.map((stroke) => (
+      stroke.id === drawingStrokeRef.current ? { ...stroke, points: [...stroke.points, point] } : stroke
+    )));
+  }, [settings.mask]);
+
+  const finishCanvasPointer = useCallback((event) => {
+    if (drawingStrokeRef.current) {
+      drawingStrokeRef.current = null;
+      event.currentTarget?.releasePointerCapture?.(event.pointerId);
+      setStatus("Mask updated");
+    }
+  }, []);
+
   const draw = useCallback((tick = performance.now()) => {
     const canvas = canvasRef.current;
     const image = sourceImageRef.current;
-    if (!canvas || !image || !isCanvasRuntimeAvailable()) return;
+    const video = videoRef.current;
+    const useVideo = sourceKind === "video" && video && video.readyState >= 2 && video.videoWidth > 0;
+    const source = useVideo ? video : image;
+    if (!canvas || !source || !isCanvasRuntimeAvailable()) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    const naturalWidth = useVideo ? video.videoWidth : image.naturalWidth;
+    const naturalHeight = useVideo ? video.videoHeight : image.naturalHeight;
     const width = 1100;
-    const height = Math.max(620, Math.round((image.naturalHeight / image.naturalWidth) * width) || 720);
+    const cropAspect = (naturalHeight * crop.h) / Math.max(1, naturalWidth * crop.w);
+    const rotated = Math.abs(crop.rotation % 180) === 90;
+    const height = Math.max(620, Math.round((rotated ? 1 / cropAspect : cropAspect) * width) || 720);
     canvas.width = width;
     canvas.height = height;
 
@@ -387,20 +667,48 @@ function App() {
     offscreen.height = height;
     const sourceCtx = offscreen.getContext("2d", { willReadFrequently: true });
     if (!sourceCtx) return;
-    sourceCtx.drawImage(image, 0, 0, width, height);
+    drawCroppedSource(sourceCtx, source, naturalWidth, naturalHeight, width, height, crop);
+
+    const backgroundImage = backgroundImageRef.current;
 
     if (settings.backgroundMode === "solid") {
       ctx.fillStyle = "#050507";
       ctx.fillRect(0, 0, width, height);
     } else if (settings.backgroundMode === "original") {
-      ctx.drawImage(image, 0, 0, width, height);
+      if (backgroundImage) {
+        ctx.drawImage(backgroundImage, 0, 0, width, height);
+      } else {
+        drawCroppedSource(ctx, source, naturalWidth, naturalHeight, width, height, crop);
+      }
     } else if (settings.backgroundMode === "none") {
       ctx.clearRect(0, 0, width, height);
     } else {
       ctx.save();
       ctx.globalAlpha = settings.backgroundOpacity / 100;
       ctx.filter = `blur(${settings.backgroundBlur}px)`;
-      ctx.drawImage(image, -settings.backgroundBlur * 2, -settings.backgroundBlur * 2, width + settings.backgroundBlur * 4, height + settings.backgroundBlur * 4);
+      if (backgroundImage) {
+        ctx.drawImage(backgroundImage, -settings.backgroundBlur * 2, -settings.backgroundBlur * 2, width + settings.backgroundBlur * 4, height + settings.backgroundBlur * 4);
+      } else {
+        drawCroppedSource(ctx, source, naturalWidth, naturalHeight, width + settings.backgroundBlur * 4, height + settings.backgroundBlur * 4, crop);
+      }
+      ctx.restore();
+    }
+
+    if (settings.lights && lights.length) {
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      lights.forEach((light) => {
+        const x = light.x * width;
+        const y = light.y * height;
+        const radius = (Math.min(width, height) * light.radius) / 100;
+        const glow = ctx.createRadialGradient(x, y, 0, x, y, radius);
+        glow.addColorStop(0, `rgba(255,255,255,${light.intensity / 100})`);
+        glow.addColorStop(0.35, `rgba(255,220,130,${(light.intensity / 100) * 0.35})`);
+        glow.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.filter = `blur(${light.blur}px)`;
+        ctx.fillStyle = glow;
+        ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+      });
       ctx.restore();
     }
 
@@ -416,25 +724,40 @@ function App() {
 
     if (settings.mask) {
       ctx.save();
-      ctx.globalCompositeOperation = settings.invertMask ? "source-over" : "destination-in";
-      ctx.fillStyle = settings.invertMask ? "rgba(0,0,0,.2)" : "#fff";
-      ctx.beginPath();
-      ctx.ellipse(width * 0.5, height * 0.5, width * 0.32, height * 0.34, 0, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.globalCompositeOperation = settings.invertMask ? "destination-out" : "destination-in";
+      ctx.fillStyle = "#fff";
+      ctx.strokeStyle = "#fff";
+      drawMaskGeometry(ctx, width, height, maskStrokes);
       ctx.restore();
       if (settings.showMaskOverlay) {
+        ctx.save();
         ctx.strokeStyle = "rgba(255,255,255,.72)";
         ctx.lineWidth = 3;
         ctx.setLineDash([12, 10]);
-        ctx.beginPath();
-        ctx.ellipse(width * 0.5, height * 0.5, width * 0.32, height * 0.34, 0, 0, Math.PI * 2);
-        ctx.stroke();
+        drawMaskGeometry(ctx, width, height, maskStrokes, "stroke");
         ctx.setLineDash([]);
+        ctx.restore();
       }
     }
 
+    if (settings.lights && lights.length) {
+      ctx.save();
+      lights.forEach((light, index) => {
+        ctx.strokeStyle = light.id === activeLightId ? "rgba(255,255,255,.95)" : "rgba(255,255,255,.45)";
+        ctx.fillStyle = light.id === activeLightId ? "rgba(255,255,255,.95)" : "rgba(255,255,255,.6)";
+        ctx.lineWidth = light.id === activeLightId ? 4 : 2;
+        ctx.beginPath();
+        ctx.arc(light.x * width, light.y * height, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.font = "700 24px ui-monospace, SFMono-Regular, Menlo, monospace";
+        ctx.fillText(String(index + 1), light.x * width + 16, light.y * height - 16);
+      });
+      ctx.restore();
+    }
+
     applyImageEffects(ctx, width, height, settings);
-  }, [settings]);
+  }, [activeLightId, crop, lights, maskStrokes, settings, sourceKind]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -450,6 +773,7 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!sourceUrl || sourceKind !== "image") return undefined;
     const image = new Image();
     image.crossOrigin = "anonymous";
     image.onload = () => {
@@ -457,11 +781,28 @@ function App() {
       draw();
     };
     image.src = sourceUrl;
-  }, [sourceUrl, draw]);
+    return undefined;
+  }, [draw, sourceKind, sourceUrl]);
+
+  useEffect(() => {
+    if (!backgroundUrl) {
+      backgroundImageRef.current = null;
+      draw();
+      return undefined;
+    }
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => {
+      backgroundImageRef.current = image;
+      draw();
+    };
+    image.src = backgroundUrl;
+    return undefined;
+  }, [backgroundUrl, draw]);
 
   useEffect(() => {
     draw();
-    if (settings.animated || settings.effects.glitch || settings.style === "disco") {
+    if (settings.animated || settings.effects.glitch || settings.style === "disco" || isPlaying) {
       const animate = (time) => {
         draw(time);
         frameRef.current = requestAnimationFrame(animate);
@@ -470,18 +811,108 @@ function App() {
       return () => cancelAnimationFrame(frameRef.current);
     }
     return undefined;
-  }, [draw, settings]);
+  }, [draw, isPlaying, settings]);
+
+  const exportGif = useCallback(async (canvas) => {
+    setExporting(true);
+    const gif = GIFEncoder();
+    const frameCanvas = document.createElement("canvas");
+    const maxWidth = 520;
+    const scale = Math.min(1, maxWidth / Math.max(1, canvas.width));
+    frameCanvas.width = Math.max(1, Math.round(canvas.width * scale));
+    frameCanvas.height = Math.max(1, Math.round(canvas.height * scale));
+    const frameCtx = frameCanvas.getContext("2d", { willReadFrequently: true });
+    if (!frameCtx) throw new Error("GIF canvas unavailable");
+
+    for (let frame = 0; frame < 10; frame += 1) {
+      setStatus(`Exporting GIF... ${Math.round((frame / 10) * 100)}%`);
+      draw(performance.now() + frame * 180);
+      await nextAnimationFrame();
+      frameCtx.clearRect(0, 0, frameCanvas.width, frameCanvas.height);
+      frameCtx.drawImage(canvas, 0, 0, frameCanvas.width, frameCanvas.height);
+      const { data, width, height } = frameCtx.getImageData(0, 0, frameCanvas.width, frameCanvas.height);
+      const palette = quantize(data, 256, { format: "rgb444" });
+      const index = applyPalette(data, palette, "rgb444");
+      gif.writeFrame(index, width, height, { palette, delay: 110, repeat: 0 });
+    }
+
+    gif.finish();
+    downloadBlob(new Blob([gif.bytes()], { type: "image/gif" }), "ascii-magic.gif");
+    setStatus("Exported GIF animation");
+    setExporting(false);
+  }, [draw]);
+
+  const exportRecordedVideo = useCallback(async (canvas, format) => {
+    if (!canvas.captureStream || typeof MediaRecorder === "undefined") {
+      setStatus("MP4 unavailable in this browser; exported PNG fallback");
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+      if (blob) downloadBlob(blob, "ascii-magic.png");
+      return;
+    }
+
+    const candidates = [
+      "video/mp4;codecs=avc1.42E01E",
+      "video/mp4",
+      "video/webm;codecs=vp9",
+      "video/webm"
+    ];
+    const mimeType = candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate));
+    if (!mimeType) {
+      setStatus("Video export unsupported; exported PNG fallback");
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+      if (blob) downloadBlob(blob, "ascii-magic.png");
+      return;
+    }
+
+    setExporting(true);
+    setStatus("Recording animation... 0%");
+    const stream = canvas.captureStream(30);
+    const chunks = [];
+    const recorder = new MediaRecorder(stream, { mimeType });
+    recorder.ondataavailable = (event) => {
+      if (event.data.size) chunks.push(event.data);
+    };
+    const stopped = new Promise((resolve) => {
+      recorder.onstop = resolve;
+    });
+    recorder.start();
+    const startedAt = performance.now();
+    const renderLoop = (time) => {
+      draw(time);
+      setStatus(`Recording animation... ${Math.min(99, Math.round(((time - startedAt) / 1800) * 100))}%`);
+      if (time - startedAt < 1800) requestAnimationFrame(renderLoop);
+    };
+    requestAnimationFrame(renderLoop);
+    await new Promise((resolve) => setTimeout(resolve, 1900));
+    recorder.stop();
+    await stopped;
+    stream.getTracks().forEach((track) => track.stop());
+    const extension = mimeType.includes("mp4") ? "mp4" : "webm";
+    downloadBlob(new Blob(chunks, { type: mimeType }), `ascii-magic.${extension}`);
+    setStatus(
+      extension === "mp4"
+        ? `Exported ${format === "mp4-video" ? "MP4 video" : "MP4 animation"}`
+        : "MP4 unavailable; exported WebM fallback"
+    );
+    setExporting(false);
+  }, [draw]);
 
   const exportCanvas = useCallback(async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const format = settings.exportFormat;
-    if (format === "gif" || format.startsWith("mp4")) {
-      setExporting(true);
-      setStatus("Exporting... 0%");
-      await new Promise((resolve) => setTimeout(resolve, 350));
-      setStatus(`${format.toUpperCase()} export queued. Static PNG/JPG export is available in this slice.`);
+    try {
+      if (format === "gif") {
+        await exportGif(canvas);
+        return;
+      }
+      if (format.startsWith("mp4")) {
+        await exportRecordedVideo(canvas, format);
+        return;
+      }
+    } catch (error) {
       setExporting(false);
+      setStatus(error instanceof Error ? error.message : "Export failed");
       return;
     }
     const exportCanvasEl = document.createElement("canvas");
@@ -496,7 +927,47 @@ function App() {
     link.download = `ascii-magic.${format === "jpg" ? "jpg" : "png"}`;
     link.click();
     setStatus(`Exported ${format.toUpperCase()} at ${settings.exportScale}x`);
-  }, [settings]);
+  }, [exportGif, exportRecordedVideo, settings.exportFormat, settings.exportScale]);
+
+  const playVideo = useCallback(async () => {
+    const video = videoRef.current;
+    setIsPlaying(true);
+    setStatus("Playback started");
+    if (video && sourceKind === "video") {
+      video.playbackRate = playbackRate;
+      try {
+        await video.play();
+      } catch {
+        setStatus("Playback ready; tap the preview if the browser blocks autoplay");
+      }
+    }
+  }, [playbackRate, sourceKind]);
+
+  const stopVideo = useCallback(() => {
+    const video = videoRef.current;
+    video?.pause();
+    setIsPlaying(false);
+    setStatus("Playback stopped");
+    draw();
+  }, [draw]);
+
+  const updateSeek = useCallback((value) => {
+    const next = Number(value);
+    setSeek(next);
+    const video = videoRef.current;
+    if (video && sourceKind === "video") {
+      video.currentTime = next;
+      draw();
+    }
+  }, [draw, sourceKind]);
+
+  const updatePlaybackRate = useCallback((value) => {
+    const rate = Number(value);
+    setPlaybackRate(rate);
+    const video = videoRef.current;
+    if (video) video.playbackRate = rate;
+    setStatus(`Speed ${rate}x`);
+  }, []);
 
   const effectControls = useMemo(() => EFFECTS.map(([key, label]) => (
     <ToggleControl key={key} label={label} checked={settings.effects[key]} onChange={(value) => updateEffect(key, value)} />
@@ -542,10 +1013,31 @@ function App() {
                 ref={canvasRef}
                 data-testid="ascii-canvas"
                 aria-label="ASCII art preview"
-                className="max-h-[72vh] w-full max-w-[1100px] rounded-lg object-contain shadow-2xl"
+                className="max-h-[72vh] w-full max-w-[1100px] touch-none rounded-lg object-contain shadow-2xl"
+                onPointerDown={handleCanvasPointerDown}
+                onPointerMove={handleCanvasPointerMove}
+                onPointerUp={finishCanvasPointer}
+                onPointerLeave={finishCanvasPointer}
               />
+              {videoUrl ? (
+                <video
+                  ref={videoRef}
+                  className="hidden"
+                  src={videoUrl}
+                  muted
+                  playsInline
+                  loop
+                  onLoadedMetadata={(event) => {
+                    const nextDuration = Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 100;
+                    setDuration(Math.max(0.1, nextDuration));
+                    draw();
+                  }}
+                  onLoadedData={() => draw()}
+                  onTimeUpdate={(event) => setSeek(event.currentTarget.currentTime)}
+                />
+              ) : null}
               <div className="absolute bottom-4 left-4 max-w-[calc(100%-2rem)] rounded-lg bg-background/85 px-3 py-2 text-sm text-muted-foreground shadow-lg backdrop-blur">
-                {exporting ? "Exporting... 0%" : status}
+                {status}
               </div>
             </CardContent>
           </Card>
@@ -610,28 +1102,72 @@ function App() {
                       </Button>
                       <Button variant="outline" onClick={loadDemo}>
                         <WandSparklesIcon data-icon="inline-start" />
-                        Inspire Me
+                        Random Demo
                       </Button>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label className="text-sm font-medium">Demo gallery</Label>
+                        <Badge variant="outline">{DEMO_PRESETS.length} presets</Badge>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {DEMO_PRESETS.map((demo) => (
+                          <Button
+                            key={demo.id}
+                            variant={demoSeed === demo.id ? "secondary" : "outline"}
+                            size="sm"
+                            onClick={() => loadDemoPreset(demo.id)}
+                          >
+                            {demo.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    <Separator />
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label className="text-sm font-medium">Background gallery</Label>
+                        <Badge variant="outline">backdrops</Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {BACKGROUND_PRESETS.map((background) => (
+                          <Button
+                            key={background.id}
+                            variant="outline"
+                            size="sm"
+                            className="justify-start gap-2"
+                            onClick={() => loadBackgroundPreset(background.id)}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="size-5 rounded-sm border"
+                              style={{ background: `linear-gradient(135deg, ${background.colors.join(", ")})` }}
+                            />
+                            {background.label}
+                          </Button>
+                        ))}
+                      </div>
                     </div>
                     <Separator />
                     <div className="grid grid-cols-2 gap-3">
                       <SelectControl label="Format" value={settings.exportFormat} onChange={(value) => updateSetting("exportFormat", value)} options={EXPORT_FORMATS} />
                       <SelectControl label="Resolution" value={settings.exportScale} onChange={(value) => updateSetting("exportScale", Number(value))} options={[["1", "1x"], ["2", "2x"], ["3", "3x"], ["4", "4x"]]} />
                     </div>
-                    <Button onClick={exportCanvas}>
+                    <Button onClick={exportCanvas} disabled={exporting}>
                       <DownloadIcon data-icon="inline-start" />
-                      Export
+                      {exporting ? "Exporting" : "Export"}
                     </Button>
                   </ControlCard>
 
                   <ControlCard title="Playback" description="Video parity controls are staged on the same surface.">
                     <div className="grid grid-cols-2 gap-2">
-                      <Button variant="outline" onClick={() => setStatus("Playback started")}><PlayIcon data-icon="inline-start" />Play</Button>
-                      <Button variant="outline" onClick={() => setStatus("Playback stopped")}><SquareIcon data-icon="inline-start" />Stop</Button>
+                      <Button variant="outline" onClick={playVideo}><PlayIcon data-icon="inline-start" />Play</Button>
+                      <Button variant="outline" onClick={stopVideo}><SquareIcon data-icon="inline-start" />Stop</Button>
                     </div>
-                    <RangeControl label="Seek" min={0} max={100} step={0.1} value={0} onChange={() => {}} />
-                    <SelectControl label="Speed" value="1" onChange={() => {}} options={[["0.25", "0.25x"], ["0.5", "0.5x"], ["1", "1x"], ["1.5", "1.5x"], ["2", "2x"]]} />
+                    <RangeControl label="Seek" min={0} max={Math.max(0.1, duration)} step={0.1} value={Number(seek.toFixed(1))} onChange={updateSeek} />
+                    <SelectControl label="Speed" value={playbackRate} onChange={updatePlaybackRate} options={[["0.25", "0.25x"], ["0.5", "0.5x"], ["1", "1x"], ["1.5", "1.5x"], ["2", "2x"]]} />
                     <Badge variant="secondary" className="w-fit">FPS 30</Badge>
+                    <Badge variant="outline" className="w-fit">{sourceKind === "video" ? "Video source" : "Image source"}</Badge>
                   </ControlCard>
                 </TabsContent>
 
@@ -680,21 +1216,62 @@ function App() {
 
                   <ControlCard title="Lights" description="Place lights, shape glow, and push the ASCII surface.">
                     <ToggleControl label="Enable Lights" checked={settings.lights} onChange={(value) => updateSetting("lights", value)} />
-                    <div className="relative grid h-28 place-items-center rounded-lg border bg-muted/40 text-xs text-muted-foreground">
-                      tap to add
-                      <span className="absolute size-4 rounded-full border bg-primary shadow-[0_0_28px_hsl(var(--primary))]" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="outline" onClick={() => addLight()}>
+                        <SparklesIcon data-icon="inline-start" />
+                        Add Light
+                      </Button>
+                      <Button variant="outline" disabled={!activeLight} onClick={deleteActiveLight}>
+                        <Trash2Icon data-icon="inline-start" />
+                        Delete
+                      </Button>
                     </div>
-                    <RangeControl label="Radius" min={5} max={100} value={30} onChange={() => {}} />
-                    <RangeControl label="Light Intensity" min={0} max={100} value={80} onChange={() => {}} />
+                    <div className="relative h-28 overflow-hidden rounded-lg border bg-muted/40">
+                      {lights.length ? lights.map((light, index) => (
+                        <button
+                          key={light.id}
+                          type="button"
+                          aria-label={`Select light ${index + 1}`}
+                          className="absolute size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border bg-primary text-[10px] font-semibold text-primary-foreground shadow-[0_0_28px_hsl(var(--primary))]"
+                          style={{ left: `${light.x * 100}%`, top: `${light.y * 100}%` }}
+                          onClick={() => {
+                            setActiveLightId(light.id);
+                            setStatus(`Light ${index + 1} active`);
+                          }}
+                        >
+                          {index + 1}
+                        </button>
+                      )) : (
+                        <div className="grid h-full place-items-center text-xs text-muted-foreground">tap preview or add a light</div>
+                      )}
+                    </div>
+                    {activeLight ? (
+                      <>
+                        <Badge variant="secondary" className="w-fit">Light {activeLightIndex + 1} selected</Badge>
+                        <RangeControl label="Light X" min={0} max={100} value={Math.round(activeLight.x * 100)} suffix="%" onChange={(value) => updateActiveLight("x", value / 100)} />
+                        <RangeControl label="Light Y" min={0} max={100} value={Math.round(activeLight.y * 100)} suffix="%" onChange={(value) => updateActiveLight("y", value / 100)} />
+                        <RangeControl label="Radius" min={5} max={100} value={activeLight.radius} onChange={(value) => updateActiveLight("radius", value)} />
+                        <RangeControl label="Light Intensity" min={0} max={100} value={activeLight.intensity} onChange={(value) => updateActiveLight("intensity", value)} />
+                        <RangeControl label="Blur" min={0} max={80} value={activeLight.blur} suffix="px" onChange={(value) => updateActiveLight("blur", value)} />
+                        <RangeControl label="Rotation" min={0} max={360} value={activeLight.rotation} suffix="deg" onChange={(value) => updateActiveLight("rotation", value)} />
+                      </>
+                    ) : (
+                      <Badge variant="outline" className="w-fit">No light selected</Badge>
+                    )}
                   </ControlCard>
 
                   <ControlCard title="Mask" description="Restrict ASCII art to drawn areas while preserving the background.">
                     <ToggleControl label="Enable Mask" checked={settings.mask} onChange={(value) => updateSetting("mask", value)} />
+                    {settings.mask ? (
+                      <Button variant="secondary" onClick={() => setStatus("Draw Mask")}>
+                        Draw Mask
+                      </Button>
+                    ) : null}
                     <SelectControl label="Mask Tool" value={settings.maskTool} onChange={(value) => updateSetting("maskTool", value)} options={[["freehand", "Freehand"], ["rect", "Rectangle"], ["ellipse", "Ellipse"]]} />
                     <RangeControl label="Brush Size" min={5} max={100} value={settings.brushSize} onChange={(value) => updateSetting("brushSize", value)} />
                     <ToggleControl label="Show Overlay" checked={settings.showMaskOverlay} onChange={(value) => updateSetting("showMaskOverlay", value)} />
                     <ToggleControl label="Invert Mask" checked={settings.invertMask} onChange={(value) => updateSetting("invertMask", value)} />
-                    <Button variant="outline" onClick={() => setStatus("Mask cleared")}>Clear Mask</Button>
+                    <Button variant="outline" onClick={() => { setMaskStrokes([]); setStatus("Mask cleared"); }}>Clear Mask</Button>
                   </ControlCard>
                 </TabsContent>
 
@@ -779,12 +1356,41 @@ function App() {
                 <DialogTitle>Crop & Rotate</DialogTitle>
                 <DialogDescription>Adjust the source frame before rendering.</DialogDescription>
               </DialogHeader>
-              <div className="aspect-video rounded-lg border bg-[linear-gradient(90deg,transparent_32.8%,hsl(var(--border))_33%,transparent_33.2%,transparent_66.1%,hsl(var(--border))_66.3%,transparent_66.5%),linear-gradient(0deg,transparent_32.8%,hsl(var(--border))_33%,transparent_33.2%,transparent_66.1%,hsl(var(--border))_66.3%,transparent_66.5%)]" />
+              <div className="relative aspect-video overflow-hidden rounded-lg border bg-[linear-gradient(90deg,transparent_32.8%,hsl(var(--border))_33%,transparent_33.2%,transparent_66.1%,hsl(var(--border))_66.3%,transparent_66.5%),linear-gradient(0deg,transparent_32.8%,hsl(var(--border))_33%,transparent_33.2%,transparent_66.1%,hsl(var(--border))_66.3%,transparent_66.5%)]">
+                <div
+                  className="absolute border-2 border-primary bg-primary/10 shadow-[0_0_0_999px_rgba(0,0,0,.38)]"
+                  style={{
+                    left: `${crop.x * 100}%`,
+                    top: `${crop.y * 100}%`,
+                    width: `${crop.w * 100}%`,
+                    height: `${crop.h * 100}%`,
+                    transform: `rotate(${crop.rotation}deg)`
+                  }}
+                >
+                  <span className="absolute -left-1 -top-1 size-2 rounded-full bg-primary" />
+                  <span className="absolute -right-1 -top-1 size-2 rounded-full bg-primary" />
+                  <span className="absolute -bottom-1 -left-1 size-2 rounded-full bg-primary" />
+                  <span className="absolute -bottom-1 -right-1 size-2 rounded-full bg-primary" />
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <RangeControl label="Crop X" min={0} max={95} value={Math.round(crop.x * 100)} suffix="%" onChange={(value) => updateCrop("x", value / 100)} />
+                <RangeControl label="Crop Y" min={0} max={95} value={Math.round(crop.y * 100)} suffix="%" onChange={(value) => updateCrop("y", value / 100)} />
+                <RangeControl label="Width" min={5} max={Math.round((1 - crop.x) * 100)} value={Math.round(crop.w * 100)} suffix="%" onChange={(value) => updateCrop("w", value / 100)} />
+                <RangeControl label="Height" min={5} max={Math.round((1 - crop.y) * 100)} value={Math.round(crop.h * 100)} suffix="%" onChange={(value) => updateCrop("h", value / 100)} />
+                <RangeControl label="Rotation" min={-180} max={180} value={crop.rotation} suffix="deg" onChange={(value) => updateCrop("rotation", value)} />
+              </div>
               <DialogFooter>
-                <Button variant="outline" title="Rotate counter-clockwise" onClick={() => setStatus("Rotated counter-clockwise")}>Rotate left</Button>
-                <Button variant="outline" title="Rotate clockwise" onClick={() => setStatus("Rotated clockwise")}>Rotate right</Button>
+                <Button variant="outline" title="Rotate counter-clockwise" onClick={() => { updateCrop("rotation", crop.rotation - 90); setStatus("Rotated counter-clockwise"); }}>
+                  <RotateCcwIcon data-icon="inline-start" />
+                  Rotate left
+                </Button>
+                <Button variant="outline" title="Rotate clockwise" onClick={() => { updateCrop("rotation", crop.rotation + 90); setStatus("Rotated clockwise"); }}>
+                  <RotateCwIcon data-icon="inline-start" />
+                  Rotate right
+                </Button>
                 <Button variant="outline" onClick={() => setModal(null)}>Cancel</Button>
-                <Button onClick={() => { setStatus("Crop saved"); setModal(null); }}>Save</Button>
+                <Button onClick={() => { draw(); setStatus("Crop saved"); setModal(null); }}>Save</Button>
               </DialogFooter>
             </>
           )}

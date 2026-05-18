@@ -61,7 +61,7 @@ visual_board:
     command: "npx goalbuddy extend github-projects"
     missing: []
 
-active_task: T004
+active_task: T006
 
 tasks:
   - id: T001
@@ -240,7 +240,7 @@ tasks:
   - id: T004
     type: pm
     assignee: PM
-    status: active
+    status: done
     reasoning_hint: default
     objective: "After the first verified slice, update the board with the next largest safe parity implementation package or a targeted blocker-recovery task."
     inputs:
@@ -256,6 +256,115 @@ tasks:
       - "Next active task selected or spawned."
       - "Board updated with explicit allowed_files, verify, and stop_if for the next Worker if needed."
       - "Receipt explaining why the next task is safe and useful."
+    receipt:
+      result: done
+      full_outcome_complete: false
+      summary: "User correctly rejected completion. T003 delivered the shadcn/static-image foundation but left required parity gaps around direct crop/mask/light manipulation, demo/background galleries, video playback, GIF/MP4 export behavior, and final coverage audit."
+      next_active_task: T005
+      spawned_tasks:
+        - T005
+  - id: T005
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Implement the next parity slice: demo/background galleries, direct crop/rotate controls, mask drawing, light placement/editing, video playback/seek/speed rendering, GIF/MP4 export behavior with graceful fallback, and tests/browser checks."
+    inputs:
+      - "T001 public feature inventory"
+      - "T003 implementation receipt"
+      - "User feedback: goal not achieved, need full feature parity"
+    constraints:
+      - "Keep shadcn/radix-nova UI patterns."
+      - "Preserve the existing canvas rendering foundation."
+      - "Do not claim full parity after this slice unless final audit proves it."
+      - "Follow project instruction: always commit in small batches when committing."
+    expected_output:
+      - "Implemented galleries, direct-manipulation crop/mask/lights, video playback rendering, animated export behavior, and richer parity controls."
+      - "Updated tests proving the new surfaces exist and key actions update state."
+      - "Verification commands and browser checks."
+      - "Remaining parity gaps, if any."
+    allowed_files:
+      - "package.json"
+      - "package-lock.json"
+      - "src/**"
+      - "tests/**"
+      - "vite.config.js"
+      - "docs/goals/ascii-magic-parity/state.yaml"
+    verify:
+      - "npm install"
+      - "npm run test"
+      - "npm run build"
+      - "git diff --check"
+      - "Browser smoke check at http://127.0.0.1:5174/"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "Need credentials, paid services, destructive operations, or server-side encoders."
+      - "Browser APIs make true MP4 encoding unavailable; implement and document graceful fallback instead of blocking."
+      - "Verification fails twice for the same underlying reason."
+    receipt:
+      result: done
+      full_outcome_complete: false
+      changed_files:
+        - "package.json"
+        - "package-lock.json"
+        - "src/App.jsx"
+        - "tests/app.test.jsx"
+        - "tests/setup.js"
+        - "docs/goals/ascii-magic-parity/state.yaml"
+      commands:
+        - cmd: "npm install gifenc"
+          status: pass
+        - cmd: "npm run test"
+          status: pass
+        - cmd: "npm run build"
+          status: pass
+        - cmd: "git diff --check"
+          status: pass
+      browser_checks:
+        - "Reloaded http://127.0.0.1:5174/ in the in-app browser."
+        - "Clicked Demo 02 and verified the status path."
+        - "Opened Motion, added Light 1, enabled mask, and verified Draw Mask appears."
+        - "Opened Finish > Crop / Rotate and verified the dialog, crop controls, and Save action are present."
+        - "Read browser metrics: canvas present, no horizontal overflow at the active desktop viewport, no console errors."
+        - "Captured QA screenshot at /tmp/ascii-magic-parity-t005.png."
+      summary: "Implemented gallery presets, background presets, crop state wired into rendering, direct canvas mask drawing, light placement/editing, video source playback/seek/speed controls, GIF encoding through gifenc, and MP4/WebM browser-recording fallback behavior."
+      remaining_parity_gaps:
+        - "Several post-processing effects are still shallow or toggle-only: CRT, chromatic, RGB split, glitch, blur, pixelate, halftone, and stronger bloom/composite behavior need render passes."
+        - "Animation style options still share a mostly wave-like motion model and need distinct cascade/reveal/pulse behavior."
+        - "Final parity audit against the T001 public inventory is still required after those rendering gaps close."
+  - id: T006
+    type: worker
+    assignee: Worker
+    status: active
+    reasoning_hint: default
+    objective: "Implement the remaining visual parity slice: distinct animation styles and real post-processing render passes for CRT, chromatic/RGB split, glitch, blur, pixelate, halftone, and stronger bloom behavior, with tests and browser checks."
+    inputs:
+      - "T001 public feature inventory"
+      - "T005 receipt"
+      - "Current app implementation"
+    constraints:
+      - "Keep shadcn/radix-nova UI patterns."
+      - "Preserve the existing canvas rendering foundation."
+      - "Do not claim full parity until T999 audit passes."
+      - "Follow project instruction: always commit in small batches when committing."
+    expected_output:
+      - "Remaining post-processing toggles visibly affect the canvas render."
+      - "Animation style selector changes cell motion/reveal behavior distinctly."
+      - "Tests cover the new effect controls or helper behavior."
+      - "Verification commands and browser checks."
+    allowed_files:
+      - "src/**"
+      - "tests/**"
+      - "docs/goals/ascii-magic-parity/state.yaml"
+    verify:
+      - "npm run test"
+      - "npm run build"
+      - "git diff --check"
+      - "Browser smoke check at http://127.0.0.1:5174/"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "Rendering changes require paid services, credentials, or server-side encoders."
+      - "Verification fails twice for the same underlying reason."
     receipt: null
   - id: T999
     type: judge

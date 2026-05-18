@@ -24,4 +24,26 @@ describe("ASCII Magic app shell", () => {
     expect(screen.getByText(/Demo loaded/i)).toBeInTheDocument();
     expect(screen.getByTestId("ascii-canvas")).toBeInTheDocument();
   });
+
+  it("exposes parity controls for galleries, crop, lights, masks, and animated export", async () => {
+    render(<App />);
+
+    expect(screen.getByText("Demo gallery")).toBeInTheDocument();
+    expect(screen.getByText("Background gallery")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Demo 02" }));
+    expect(screen.getByText(/Demo 02 loaded/i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("tab", { name: "Motion" }));
+    await userEvent.click(screen.getByRole("button", { name: "Add Light" }));
+    expect(screen.getByText(/Light 1 selected/i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("switch", { name: "Enable Mask" }));
+    expect(screen.getByText("Draw Mask")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("tab", { name: "Finish" }));
+    await userEvent.click(screen.getByRole("button", { name: "Crop / Rotate" }));
+    expect(screen.getByRole("dialog", { name: "Crop & Rotate" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+  });
 });
