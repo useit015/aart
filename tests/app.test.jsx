@@ -149,6 +149,23 @@ describe("Glyph Studio app shell", () => {
     expect(screen.getByText("Active quality preset: Custom")).toBeInTheDocument();
   });
 
+  it("exposes sigil-inspired output quality controls", async () => {
+    render(<App />);
+
+    await userEvent.click(screen.getByRole("tab", { name: "Look" }));
+    expect(screen.getByText("Output Quality")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Grid quality Ultra" }));
+    expect(screen.getAllByText("Grid quality: Ultra").length).toBeGreaterThan(0);
+
+    await userEvent.click(screen.getByRole("button", { name: "Palette Amber" }));
+    expect(screen.getAllByText("Palette mode: Amber").length).toBeGreaterThan(0);
+
+    await userEvent.click(screen.getByRole("button", { name: "Charset Blocks" }));
+    expect(screen.getByLabelText("Chars")).toHaveValue(" ░▒▓█");
+    expect(screen.queryByRole("button", { name: "Random Demo" })).not.toBeInTheDocument();
+  });
+
   it("supports the standalone changelog route", () => {
     window.history.pushState({}, "", "/changelog");
 

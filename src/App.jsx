@@ -21,6 +21,10 @@ import {
 } from "lucide-react";
 import {
   CHAR_SETS,
+  CHARSET_PRESETS,
+  GRID_QUALITY_ORDER,
+  GRID_QUALITY_PRESETS,
+  PALETTE_MODES,
   QUALITY_PRESET_ORDER,
   QUALITY_PRESETS,
   STYLE_LABELS,
@@ -28,9 +32,12 @@ import {
   buildAsciiCells,
   clamp,
   computeAnimationTransform,
+  correctedRows,
   createDefaultSettings,
+  decodeAsciiGrid,
   resolveBackgroundBlurFrame,
-  resolvePostProcessingPlan
+  resolvePostProcessingPlan,
+  sampleAsciiGrid
 } from "./ascii.js";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -818,6 +825,8 @@ function App() {
   const backgroundImageRef = useRef(null);
   const videoRef = useRef(null);
   const fileRef = useRef(null);
+  const stillGridCacheRef = useRef({ key: "", grid: null });
+  const sourceCanvasRef = useRef(null);
   const frameRef = useRef(0);
   const drawingStrokeRef = useRef(null);
   const cropDragRef = useRef(null);
@@ -867,12 +876,48 @@ function App() {
     setSettings((current) => ({ ...current, [key]: value, qualityPreset: "custom" }));
   }, [trackEvent]);
 
+  const selectGridQuality = useCallback((qualityId) => {
+    const preset = GRID_QUALITY_PRESETS[qualityId] || GRID_QUALITY_PRESETS.balanced;
+    trackEvent("grid_quality_change", { quality: qualityId });
+    stillGridCacheRef.current = { key: "", grid: null };
+    setSettings((current) => ({
+      ...current,
+      gridQuality: GRID_QUALITY_PRESETS[qualityId] ? qualityId : "balanced",
+      gridColumns: preset.columns,
+      fontSize: preset.fontSize,
+      qualityPreset: "custom"
+    }));
+    setStatus(`Grid quality: ${preset.label}`);
+  }, [trackEvent]);
+
+  const selectPaletteMode = useCallback((paletteMode) => {
+    const mode = PALETTE_MODES.find((item) => item.id === paletteMode) || PALETTE_MODES[0];
+    trackEvent("palette_mode_change", { paletteMode: mode.id });
+    setSettings((current) => ({ ...current, paletteMode: mode.id }));
+    setStatus(`Palette mode: ${mode.label}`);
+  }, [trackEvent]);
+
+  const selectCharsetPreset = useCallback((presetId) => {
+    const preset = CHARSET_PRESETS.find((item) => item.id === presetId);
+    if (!preset) return;
+
+    trackEvent("charset_preset_change", { preset: presetId });
+    setSettings((current) => ({
+      ...current,
+      charsetPreset: presetId,
+      characterSet: presetId === "standard" || presetId === "detailed" ? presetId : "custom",
+      characters: preset.value,
+      qualityPreset: "custom"
+    }));
+  }, [trackEvent]);
+
   const updateCharacterSet = useCallback((value) => {
     trackEvent("setting_change", { key: "characterSet", value, qualityPreset: "custom" });
     setSettings((current) => ({
       ...current,
       characterSet: value,
       characters: value === "custom" ? current.characters : CHAR_SETS[value],
+      charsetPreset: value === "standard" || value === "detailed" ? value : "custom",
       qualityPreset: "custom"
     }));
   }, [trackEvent]);
@@ -887,6 +932,7 @@ function App() {
     setSourceName(name);
     setSourceKind(kind);
     setSourceStats(null);
+    stillGridCacheRef.current = { key: "", grid: null };
     setFileMeta(meta || {
       name,
       type: kind === "video" ? "video/*" : "generated/image",
@@ -1195,12 +1241,15 @@ function App() {
     canvas.width = width;
     canvas.height = height;
 
-    const offscreen = document.createElement("canvas");
-    offscreen.width = width;
-    offscreen.height = height;
-    const sourceCtx = offscreen.getContext("2d", { willReadFrequently: true });
-    if (!sourceCtx) return;
-    drawCroppedSource(sourceCtx, source, naturalWidth, naturalHeight, width, height, crop);
+    let sourceCtx = null;
+    if (useVideo) {
+      const offscreen = document.createElement("canvas");
+      offscreen.width = width;
+      offscreen.height = height;
+      sourceCtx = offscreen.getContext("2d", { willReadFrequently: true });
+      if (!sourceCtx) return;
+      drawCroppedSource(sourceCtx, source, naturalWidth, naturalHeight, width, height, crop);
+    }
 
     const backgroundImage = backgroundImageRef.current;
 
@@ -1247,8 +1296,45 @@ function App() {
       ctx.restore();
     }
 
-    const data = sourceCtx.getImageData(0, 0, width, height);
-    buildAsciiCells(data, width, height, settings).forEach((cell) => drawStyledCell(ctx, cell, settings, tick, width, height));
+    if (useVideo) {
+      const data = sourceCtx.getImageData(0, 0, width, height);
+      buildAsciiCells(data, width, height, settings).forEach((cell) => drawStyledCell(ctx, cell, settings, tick, width, height));
+    } else {
+      const requestedCols = Number(settings.gridColumns || GRID_QUALITY_PRESETS[settings.gridQuality]?.columns || GRID_QUALITY_PRESETS.balanced.columns);
+      const cols = Math.max(1, Math.round(Number.isFinite(requestedCols) ? requestedCols : GRID_QUALITY_PRESETS.balanced.columns));
+      const rows = correctedRows(width, height, cols);
+      const sourceCanvas = sourceCanvasRef.current || document.createElement("canvas");
+      sourceCanvasRef.current = sourceCanvas;
+      sourceCanvas.width = cols;
+      sourceCanvas.height = rows;
+      const sourceGridCtx = sourceCanvas.getContext("2d", { willReadFrequently: true });
+      if (!sourceGridCtx) return;
+      sourceGridCtx.imageSmoothingEnabled = true;
+      sourceGridCtx.clearRect(0, 0, cols, rows);
+      drawCroppedSource(sourceGridCtx, source, naturalWidth, naturalHeight, cols, rows, crop);
+
+      const gridKey = JSON.stringify({ sourceUrl, naturalWidth, naturalHeight, crop, cols, rows });
+      if (stillGridCacheRef.current.key !== gridKey || !stillGridCacheRef.current.grid) {
+        stillGridCacheRef.current = {
+          key: gridKey,
+          grid: sampleAsciiGrid(sourceGridCtx.getImageData(0, 0, cols, rows), cols, rows, {
+            ...settings,
+            gridColumns: cols,
+            gridRows: rows
+          })
+        };
+      }
+
+      decodeAsciiGrid(stillGridCacheRef.current.grid, settings).forEach((cell) => {
+        drawStyledCell(ctx, {
+          ...cell,
+          x: cell.x * width,
+          y: cell.y * height,
+          w: cell.w * width,
+          h: cell.h * height
+        }, settings, tick, width, height);
+      });
+    }
 
     if (settings.dotGrid) {
       ctx.fillStyle = "rgba(255,255,255,.18)";
@@ -1292,7 +1378,7 @@ function App() {
     }
 
     applyImageEffects(ctx, width, height, settings, tick);
-  }, [activeLightId, crop, lights, maskStrokes, settings, sourceKind]);
+  }, [activeLightId, crop, lights, maskStrokes, settings, sourceKind, sourceUrl]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -1836,6 +1922,53 @@ function App() {
                     {settings.style !== "3d" ? (
                       <RangeControl label="Font Size" min={3} max={48} value={settings.fontSize} onChange={(value) => updateQualitySetting("fontSize", value)} />
                     ) : null}
+                    <div className="flex flex-col gap-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <Label className="text-xs text-muted-foreground">Palette Mode</Label>
+                        <Badge variant="outline">
+                          Palette mode: {PALETTE_MODES.find((mode) => mode.id === settings.paletteMode)?.label || "Source"}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {PALETTE_MODES.map((mode) => (
+                          <Button
+                            key={mode.id}
+                            type="button"
+                            size="sm"
+                            variant={settings.paletteMode === mode.id ? "secondary" : "outline"}
+                            className="justify-start gap-2"
+                            aria-label={`Palette ${mode.label}`}
+                            aria-pressed={settings.paletteMode === mode.id}
+                            onClick={() => selectPaletteMode(mode.id)}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="size-4 rounded-sm border"
+                              style={{ background: mode.swatch }}
+                            />
+                            {mode.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Label className="text-xs text-muted-foreground">Charset Presets</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {CHARSET_PRESETS.map((preset) => (
+                          <Button
+                            key={preset.id}
+                            type="button"
+                            size="sm"
+                            variant={settings.charsetPreset === preset.id ? "secondary" : "outline"}
+                            aria-label={`Charset ${preset.label}`}
+                            aria-pressed={settings.charsetPreset === preset.id}
+                            onClick={() => selectCharsetPreset(preset.id)}
+                          >
+                            {preset.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
                     <SelectControl label="Character Set" value={settings.characterSet} onChange={updateCharacterSet} options={[["standard", "Standard"], ["detailed", "Detailed"], ["minimal", "Minimal"], ["custom", "Custom"]]} />
                     <div className="flex flex-col gap-1.5">
                       <Label className="text-xs text-muted-foreground">Chars</Label>
@@ -1857,6 +1990,29 @@ function App() {
                   </ControlCard>
 
                   <ControlCard title="Intensity" description="Luminance, coverage, threshold, and color response.">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <Label className="text-xs text-muted-foreground">Output Quality</Label>
+                        <Badge variant="outline">
+                          Grid quality: {GRID_QUALITY_PRESETS[settings.gridQuality]?.label || "Balanced"}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        {GRID_QUALITY_ORDER.map((qualityId) => (
+                          <Button
+                            key={qualityId}
+                            type="button"
+                            size="sm"
+                            variant={settings.gridQuality === qualityId ? "secondary" : "outline"}
+                            aria-label={`Grid quality ${GRID_QUALITY_PRESETS[qualityId].label}`}
+                            aria-pressed={settings.gridQuality === qualityId}
+                            onClick={() => selectGridQuality(qualityId)}
+                          >
+                            {GRID_QUALITY_PRESETS[qualityId].label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
                     <div className="flex flex-col gap-2">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <Label className="text-xs text-muted-foreground">Quality Presets</Label>
