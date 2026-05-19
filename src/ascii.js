@@ -108,6 +108,20 @@ export const STYLE_LABELS = {
   disco: "Disco ✨"
 };
 
+export const POINTER_MOTION_OPTIONS = [
+  ["off", "Off"],
+  ["repel", "Repel"],
+  ["attract", "Attract"],
+  ["vortex", "Vortex"]
+];
+
+export const IDLE_MOTION_OPTIONS = [
+  ["still", "Still"],
+  ["drift", "Drift"],
+  ["breathe", "Breathe"],
+  ["orbit", "Orbit"]
+];
+
 export const POST_PROCESSING_PASS_KEYS = [
   ["colorOverlay", "color-overlay"],
   ["vignette", "vignette"],
@@ -170,6 +184,12 @@ export function createDefaultSettings() {
     animationSpeed: 3000,
     animationIntensity: 60,
     animationRandomness: 50,
+    interactiveMotion: false,
+    pointerMode: "repel",
+    idleMotion: "still",
+    motionForce: 55,
+    motionRadius: 26,
+    motionAmount: 45,
     lights: false,
     mask: false,
     maskTool: "freehand",
@@ -669,4 +689,112 @@ export function computeAnimationTransform(cell, settings = createDefaultSettings
     scale: 1,
     alpha: 1
   };
+}
+
+function identityTransform() {
+  return { x: 0, y: 0, scale: 1, alpha: 1 };
+}
+
+function motionDisabled(settings) {
+  return !settings.interactiveMotion || settings.reducedMotion || settings.prefersReducedMotion;
+}
+
+function burstProgress(burst, tick) {
+  if (!burst?.active) return 1;
+  const startedAt = Number(burst.startedAt || 0);
+  return clamp((Number(tick || 0) - startedAt) / 900, 0, 1);
+}
+
+export function isInteractiveMotionActive(settings = createDefaultSettings(), pointer = {}, burst = {}, tick = 0) {
+  if (motionDisabled(settings)) return false;
+  if (pointer.active && settings.pointerMode !== "off") return true;
+  if (settings.idleMotion && settings.idleMotion !== "still") return true;
+  return Boolean(burst?.active && burstProgress(burst, tick) < 1);
+}
+
+export function computeInteractiveMotionTransform(
+  cell,
+  settings = createDefaultSettings(),
+  pointer = {},
+  tick = 0,
+  width = 1,
+  height = 1,
+  burst = {}
+) {
+  if (motionDisabled(settings)) return identityTransform();
+
+  const amount = clamp(Number(settings.motionAmount || 0) / 100, 0, 1);
+  if (amount <= 0) return identityTransform();
+
+  const cellX = Number(cell.x || 0) + Number(cell.w || 0) / 2;
+  const cellY = Number(cell.y || 0) + Number(cell.h || 0) / 2;
+  const normalizedWidth = Math.max(1, Number(width || 1));
+  const normalizedHeight = Math.max(1, Number(height || 1));
+  const phase = Number(tick || 0) * 0.001 + cellX * 0.013 + cellY * 0.017 + Number(cell.luminance || 0) * 0.002;
+  let x = 0;
+  let y = 0;
+  let scale = 1;
+  let alpha = 1;
+
+  if (settings.idleMotion && settings.idleMotion !== "still") {
+    const idleAmplitude = 8 * amount;
+    if (settings.idleMotion === "drift") {
+      x += Math.sin(phase * 0.82) * idleAmplitude;
+      y += Math.cos(phase * 0.68) * idleAmplitude * 0.72;
+    } else if (settings.idleMotion === "breathe") {
+      const breath = Math.sin(phase * 1.15);
+      scale += breath * 0.08 * amount;
+      alpha = clamp(0.9 + breath * 0.1, 0.68, 1);
+    } else if (settings.idleMotion === "orbit") {
+      const dx = cellX - normalizedWidth / 2;
+      const dy = cellY - normalizedHeight / 2;
+      const distance = Math.max(1, Math.hypot(dx, dy));
+      const orbit = Math.sin(phase * 0.7) * idleAmplitude * 0.9;
+      x += (-dy / distance) * orbit;
+      y += (dx / distance) * orbit;
+    }
+  }
+
+  if (pointer.active && settings.pointerMode !== "off") {
+    const dx = cellX - Number(pointer.x || 0);
+    const dy = cellY - Number(pointer.y || 0);
+    const radius = Math.max(1, Math.min(normalizedWidth, normalizedHeight) * clamp(Number(settings.motionRadius || 0), 0, 100) / 100);
+    const distance = Math.hypot(dx, dy);
+    if (distance < radius) {
+      const safeDistance = Math.max(distance, 0.001);
+      const falloff = Math.pow(1 - distance / radius, 2);
+      const force = falloff * amount * clamp(Number(settings.motionForce || 0) / 100, 0, 2) * 42;
+      if (settings.pointerMode === "repel") {
+        x += (dx / safeDistance) * force;
+        y += (dy / safeDistance) * force;
+        scale += falloff * amount * 0.05;
+      } else if (settings.pointerMode === "attract") {
+        x -= (dx / safeDistance) * force * 0.72;
+        y -= (dy / safeDistance) * force * 0.72;
+        scale -= falloff * amount * 0.035;
+      } else if (settings.pointerMode === "vortex") {
+        x += (-dy / safeDistance) * force * 0.82;
+        y += (dx / safeDistance) * force * 0.82;
+        scale += falloff * amount * 0.025;
+      }
+    }
+  }
+
+  const burstTime = burstProgress(burst, tick);
+  if (burst?.active && burstTime < 1) {
+    const dx = cellX - normalizedWidth / 2;
+    const dy = cellY - normalizedHeight / 2;
+    const distance = Math.max(1, Math.hypot(dx, dy));
+    const push = Math.pow(1 - burstTime, 2) * amount * 54;
+    x += (dx / distance) * push;
+    y += (dy / distance) * push;
+    scale += (1 - burstTime) * amount * 0.08;
+    alpha = Math.min(alpha, 0.94);
+  }
+
+  if (Math.abs(x) < 0.0001 && Math.abs(y) < 0.0001 && Math.abs(scale - 1) < 0.0001 && Math.abs(alpha - 1) < 0.0001) {
+    return identityTransform();
+  }
+
+  return { x, y, scale, alpha };
 }

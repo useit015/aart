@@ -10,9 +10,11 @@ import {
   applyQualityPreset,
   buildAsciiCells,
   computeAnimationTransform,
+  computeInteractiveMotionTransform,
   correctedRows,
   createDefaultSettings,
   decodeAsciiGrid,
+  isInteractiveMotionActive,
   luminanceToGlyph,
   matchesQualityPreset,
   packRgb565,
@@ -253,6 +255,70 @@ describe("ASCII renderer primitives", () => {
 
     expect(signatures.size).toBe(styles.length);
     expect(computeAnimationTransform(cell, { ...baseSettings, animationStyle: "reveal" }, 250, 1100, 620).alpha).toBeLessThan(1);
+  });
+
+  it("keeps interactive motion inactive until users enable it", () => {
+    const cell = { x: 200, y: 120, w: 8, h: 12, luminance: 96 };
+    const settings = createDefaultSettings();
+    const pointer = { active: true, x: 205, y: 120 };
+
+    expect(computeInteractiveMotionTransform(cell, settings, pointer, 900, 1100, 620)).toEqual({
+      x: 0,
+      y: 0,
+      scale: 1,
+      alpha: 1
+    });
+    expect(isInteractiveMotionActive(settings, pointer, { active: true, startedAt: 0 }, 900)).toBe(false);
+  });
+
+  it("makes pointer modes distinct and respects radius limits", () => {
+    const cell = { x: 200, y: 120, w: 8, h: 12, luminance: 96 };
+    const settings = {
+      ...createDefaultSettings(),
+      interactiveMotion: true,
+      motionForce: 80,
+      motionRadius: 30,
+      motionAmount: 70
+    };
+    const pointer = { active: true, x: 205, y: 120 };
+    const farPointer = { active: true, x: 900, y: 500 };
+
+    const repel = computeInteractiveMotionTransform(cell, { ...settings, pointerMode: "repel" }, pointer, 900, 1100, 620);
+    const attract = computeInteractiveMotionTransform(cell, { ...settings, pointerMode: "attract" }, pointer, 900, 1100, 620);
+    const vortex = computeInteractiveMotionTransform(cell, { ...settings, pointerMode: "vortex" }, pointer, 900, 1100, 620);
+
+    expect(repel.x).toBeLessThan(0);
+    expect(attract.x).toBeGreaterThan(0);
+    expect(Math.abs(vortex.y)).toBeGreaterThan(0);
+    expect(new Set([JSON.stringify(repel), JSON.stringify(attract), JSON.stringify(vortex)]).size).toBe(3);
+    expect(computeInteractiveMotionTransform(cell, settings, farPointer, 900, 1100, 620)).toEqual({
+      x: 0,
+      y: 0,
+      scale: 1,
+      alpha: 1
+    });
+    expect(isInteractiveMotionActive(settings, pointer, { active: false, startedAt: 0 }, 900)).toBe(true);
+  });
+
+  it("makes idle motion styles distinct without requiring an active pointer", () => {
+    const cell = { x: 260, y: 180, w: 8, h: 12, luminance: 140 };
+    const settings = {
+      ...createDefaultSettings(),
+      interactiveMotion: true,
+      pointerMode: "off",
+      motionAmount: 65
+    };
+    const pointer = { active: false, x: 0, y: 0 };
+
+    const drift = computeInteractiveMotionTransform(cell, { ...settings, idleMotion: "drift" }, pointer, 1200, 1100, 620);
+    const breathe = computeInteractiveMotionTransform(cell, { ...settings, idleMotion: "breathe" }, pointer, 1200, 1100, 620);
+    const orbit = computeInteractiveMotionTransform(cell, { ...settings, idleMotion: "orbit" }, pointer, 1200, 1100, 620);
+
+    expect(drift).not.toEqual({ x: 0, y: 0, scale: 1, alpha: 1 });
+    expect(breathe.scale).not.toBe(1);
+    expect(Math.abs(orbit.x) + Math.abs(orbit.y)).toBeGreaterThan(0);
+    expect(new Set([JSON.stringify(drift), JSON.stringify(breathe), JSON.stringify(orbit)]).size).toBe(3);
+    expect(isInteractiveMotionActive({ ...settings, idleMotion: "drift" }, pointer, { active: false, startedAt: 0 }, 1200)).toBe(true);
   });
 
   it("maps every public post-processing toggle to a render pass", () => {
