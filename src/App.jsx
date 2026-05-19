@@ -432,11 +432,10 @@ function ToggleControl({ label, checked, onChange }) {
   );
 }
 
-function ControlCard({ title, description, eyebrow, children, className = "" }) {
+function ControlCard({ title, description, children, className = "" }) {
   return (
     <section className={`mission-panel ${className}`}>
       <header className="mission-panel-header">
-        {eyebrow ? <span className="mission-kicker">{eyebrow}</span> : null}
         <h2 className="text-base font-semibold leading-tight">{title}</h2>
         {description ? <p className="text-sm leading-5 text-muted-foreground">{description}</p> : null}
       </header>
@@ -452,16 +451,6 @@ function TelemetryPill({ icon: Icon, label, value }) {
       <span>{label}</span>
       <strong>{value}</strong>
     </span>
-  );
-}
-
-function Readout({ label, value, detail }) {
-  return (
-    <div className="stage-readout grid gap-1 p-3">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <strong className="text-lg font-semibold leading-none tabular-nums">{value}</strong>
-      {detail ? <span className="text-xs text-muted-foreground">{detail}</span> : null}
-    </div>
   );
 }
 
@@ -1965,97 +1954,87 @@ function App() {
   return (
     <div className="mission-shell">
       <input ref={fileRef} hidden type="file" accept={UPLOAD_ACCEPT} onChange={(event) => handleFile(event.target.files[0])} />
-      <div className="relative z-10 grid min-h-screen gap-4 p-3 lg:p-5 xl:grid-cols-[minmax(0,1fr)_440px]">
-        <main className="grid min-w-0 gap-4">
-          <header className="rail-surface flex flex-wrap items-center justify-between gap-3 p-3 lg:p-4">
-            <div className="grid gap-1">
-              <span className="mission-kicker">glyph conversion array</span>
-              <h1 className="text-2xl font-semibold leading-tight">Glyph Studio</h1>
-              <p className="text-sm text-muted-foreground">Image-to-ASCII editor</p>
+      <div className="relative z-10 mx-auto grid min-h-screen max-w-[1500px] gap-4 p-3 lg:grid-rows-[auto_minmax(0,1fr)] lg:p-4">
+        <header className="rail-surface flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="grid size-10 shrink-0 place-items-center rounded-md border border-primary/50 bg-primary/10 text-primary">
+              <ImageUpIcon className="size-5" aria-hidden="true" />
             </div>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <TelemetryPill icon={ImageUpIcon} label="source" value={sourceStateLabel} />
-              <TelemetryPill icon={SparklesIcon} label="signal" value={settings.style === "3d" ? "Cube" : STYLE_LABELS[settings.style]} />
-              <TelemetryPill icon={DownloadIcon} label="export" value={exportLabel} />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button aria-label="Menu" variant="outline" size="icon">
-                    <MenuIcon />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-                      {theme === "dark" ? <SunIcon data-icon="inline-start" /> : <MoonIcon data-icon="inline-start" />}
-                      {theme === "dark" ? "Light Mode" : "Dark Mode"}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setModal("bug")}>
-                      <BugIcon data-icon="inline-start" />
-                      Report a Bug
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setModal("feature")}>
-                      <SparklesIcon data-icon="inline-start" />
-                      Suggest a Feature
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setModal("about")}>
-                      <InfoIcon data-icon="inline-start" />
-                      About
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <a
-                      href="/changelog"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        navigate("/changelog");
-                      }}
-                    >
-                      Changelog
-                    </a>
+            <div className="min-w-0">
+              <h1 className="text-xl font-semibold leading-tight">Glyph Studio</h1>
+              <p className="truncate text-sm text-muted-foreground">
+                {sourceName ? `${sourceName} · ${settings.style === "3d" ? "Cube" : STYLE_LABELS[settings.style]} · ${exportLabel}` : "Drop media, tune ASCII, export."}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button aria-label="Open upload" onClick={() => fileRef.current?.click()}>
+              <ImageUpIcon data-icon="inline-start" />
+              Upload
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button aria-label="Menu" variant="outline" size="icon">
+                  <MenuIcon />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+                    {theme === "dark" ? <SunIcon data-icon="inline-start" /> : <MoonIcon data-icon="inline-start" />}
+                    {theme === "dark" ? "Light Mode" : "Dark Mode"}
                   </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </header>
+                  <DropdownMenuItem onClick={() => setModal("bug")}>
+                    <BugIcon data-icon="inline-start" />
+                    Report a Bug
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setModal("feature")}>
+                    <SparklesIcon data-icon="inline-start" />
+                    Suggest a Feature
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setModal("about")}>
+                    <InfoIcon data-icon="inline-start" />
+                    About
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <a
+                    href="/changelog"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      navigate("/changelog");
+                    }}
+                  >
+                    Changelog
+                  </a>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </header>
 
-          <section
-            className="drop-zone grid min-h-28 cursor-pointer gap-3 p-4 sm:grid-cols-[1fr_auto] sm:items-center lg:p-5"
-            onClick={() => fileRef.current?.click()}
+        <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_392px]">
+          <main
+            className="preview-frame relative min-h-[58vh] overflow-hidden p-3 lg:min-h-0"
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => {
               event.preventDefault();
               handleFile(event.dataTransfer.files[0]);
             }}
           >
-            <div className="flex min-w-0 items-center gap-3">
-              <span className="grid size-11 shrink-0 place-items-center rounded-md border border-primary/50 bg-primary/10 text-primary">
-                <ImageUpIcon className="size-5" aria-hidden="true" />
-              </span>
-              <div className="grid min-w-0 gap-1">
-                <h2 className="text-lg font-semibold leading-tight">Load source media</h2>
-                <p className="truncate text-sm text-muted-foreground">{sourceName || "Drop an image or video here"}</p>
-              </div>
-            </div>
-            <Button aria-label="Choose source media" onClick={() => fileRef.current?.click()}>
-              <ImageUpIcon data-icon="inline-start" />
-              Choose Source
-            </Button>
-          </section>
-
-          <section className="preview-frame relative grid min-h-[54vh] overflow-hidden p-3 lg:min-h-[66vh] lg:p-5">
-            <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex flex-wrap items-center gap-2 lg:inset-x-5 lg:top-5">
+            <div className="pointer-events-none absolute left-4 top-4 z-10 flex max-w-[calc(100%-2rem)] flex-wrap items-center gap-2">
               <Badge variant="secondary">{sourceStateLabel}</Badge>
               <Badge variant="outline">{toolStateLabel}</Badge>
               <Badge variant="outline">{qualityLabel}</Badge>
-              {activeEffectNames.length ? <Badge variant="outline">{activeEffectNames.length} effects</Badge> : null}
+              {activeEffectNames.length ? <Badge variant="outline">{activeEffectNames.length} FX</Badge> : null}
             </div>
-            <div className="relative flex min-h-[48vh] items-center justify-center pt-12">
+            <div className="flex h-full min-h-[54vh] items-center justify-center">
               <canvas
                 ref={canvasRef}
                 data-testid="ascii-canvas"
                 aria-label="ASCII art preview"
-                className={`max-h-[70vh] w-full max-w-[1120px] touch-none rounded-md object-contain shadow-2xl ${
+                className={`max-h-[calc(100vh-11rem)] w-full max-w-[1120px] touch-none rounded-md object-contain ${
                   canvasTool === "mask" ? "cursor-crosshair" : canvasTool === "light" ? "cursor-cell" : ""
                 }`}
                 onPointerEnter={updateCanvasPointerMotion}
@@ -2065,6 +2044,22 @@ function App() {
                 onPointerLeave={handleCanvasPointerLeave}
                 onPointerCancel={handleCanvasPointerLeave}
               />
+              {!sourceUrl ? (
+                <button
+                  type="button"
+                  className="absolute inset-0 z-0 grid place-items-center p-6 text-center"
+                  onClick={() => fileRef.current?.click()}
+                  aria-label="Open source upload"
+                >
+                  <span className="grid max-w-sm gap-3">
+                    <span className="mx-auto grid size-12 place-items-center rounded-md border border-primary/60 bg-primary/10 text-primary">
+                      <ImageUpIcon className="size-6" aria-hidden="true" />
+                    </span>
+                    <span className="text-lg font-semibold">Drop an image or video here</span>
+                    <span className="text-sm text-muted-foreground">or click to upload</span>
+                  </span>
+                </button>
+              ) : null}
               {videoUrl ? (
                 <video
                   ref={videoRef}
@@ -2086,56 +2081,45 @@ function App() {
                 />
               ) : null}
             </div>
-            <div className="absolute inset-x-3 bottom-3 z-10 flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-background/90 px-3 py-2 text-sm shadow-lg lg:inset-x-5 lg:bottom-5">
-              <span className="font-medium text-foreground">{status}</span>
-              <span className="text-xs text-muted-foreground">{sourceResolutionLabel}</span>
+            <div className="absolute inset-x-3 bottom-3 z-10 flex items-center justify-between gap-3 rounded-md border border-border bg-background/92 px-3 py-2 text-sm">
+              <span className="truncate font-medium text-foreground">{status}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">{sourceResolutionLabel}</span>
             </div>
-          </section>
+          </main>
 
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Readout label="Source" value={sourceKind === "video" ? "Video" : "Image"} detail={sourceResolutionLabel} />
-            <Readout label="Signal" value={qualityLabel} detail={`${settings.gridColumns} cols`} />
-            <Readout label="Motion" value={settings.interactiveMotion || settings.animated ? "Active" : "Still"} detail={toolStateLabel} />
-            <Readout label="Finish" value={exportLabel} detail={`${settings.exportDuration}s, ${settings.exportFps} fps`} />
-          </section>
-        </main>
-
-        <aside className="rail-surface flex min-h-0 flex-col overflow-hidden xl:max-h-[calc(100vh-2.5rem)]">
-          <div className="grid gap-3 border-b border-border p-3 lg:p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="grid gap-1">
-                <span className="mission-kicker">control rail</span>
-                <h2 className="text-xl font-semibold leading-tight">Mission flow</h2>
+          <aside className="rail-surface flex min-h-0 flex-col overflow-hidden lg:max-h-[calc(100vh-6rem)]">
+            <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+              <div>
+                <h2 className="text-lg font-semibold leading-tight">Controls</h2>
+                <p className="text-sm text-muted-foreground">{settings.gridColumns} cols · {exportLabel}</p>
               </div>
               <Badge variant="outline">{activeEffectNames.length} FX</Badge>
             </div>
-            <p className="text-sm leading-5 text-muted-foreground">Source, signal, motion, and finish stay in one pass.</p>
-          </div>
 
-          <ScrollArea className="xl:h-[calc(100vh-9.5rem)]">
+            <ScrollArea className="lg:h-[calc(100vh-10rem)]">
             <div className="p-3 lg:p-4">
               <Tabs defaultValue="source" className="gap-4">
                 <TabsList className="grid h-auto w-full grid-cols-4 gap-1 bg-secondary/70 p-1">
-                  <TabsTrigger value="source" className="h-11 flex-col gap-0.5 px-1 text-xs sm:text-sm">
+                  <TabsTrigger value="source" className="h-10 px-1 text-xs sm:text-sm">
                     <ImageUpIcon className="size-3.5" aria-hidden="true" />
                     Source
                   </TabsTrigger>
-                  <TabsTrigger value="look" className="h-11 flex-col gap-0.5 px-1 text-xs sm:text-sm">
+                  <TabsTrigger value="look" className="h-10 px-1 text-xs sm:text-sm">
                     <SparklesIcon className="size-3.5" aria-hidden="true" />
-                    Signal
+                    Style
                   </TabsTrigger>
-                  <TabsTrigger value="motion" className="h-11 flex-col gap-0.5 px-1 text-xs sm:text-sm">
+                  <TabsTrigger value="motion" className="h-10 px-1 text-xs sm:text-sm">
                     <LayersIcon className="size-3.5" aria-hidden="true" />
                     Motion
                   </TabsTrigger>
-                  <TabsTrigger value="finish" className="h-11 flex-col gap-0.5 px-1 text-xs sm:text-sm">
+                  <TabsTrigger value="finish" className="h-10 px-1 text-xs sm:text-sm">
                     <DownloadIcon className="size-3.5" aria-hidden="true" />
-                    Finish
+                    Export
                   </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="source" className="grid gap-4">
-                  <ControlCard eyebrow="01 source" title="Load source" description="Images and videos render through the same preview engine.">
+                  <ControlCard title="Load source" description="Images and videos render through the same preview engine.">
                     <Button onClick={() => fileRef.current?.click()}>
                       <ImageUpIcon data-icon="inline-start" />
                       Upload Image / Video
@@ -2146,7 +2130,7 @@ function App() {
                     </div>
                   </ControlCard>
 
-                  <ControlCard eyebrow="02 playback" title="Video transport" description="Frame selection and speed stay available for still media too.">
+                  <ControlCard title="Video transport" description="Frame selection and speed stay available for still media too.">
                     <div className="grid grid-cols-2 gap-2">
                       <Button variant="outline" onClick={playVideo}><PlayIcon data-icon="inline-start" />Play</Button>
                       <Button variant="outline" onClick={stopVideo}><SquareIcon data-icon="inline-start" />Stop</Button>
@@ -2161,7 +2145,7 @@ function App() {
                 </TabsContent>
 
                 <TabsContent value="look" className="grid gap-4">
-                  <ControlCard eyebrow="03 signal" title="Render style" description="Character system, blend, and output texture.">
+                  <ControlCard title="Render style" description="Character system, blend, and output texture.">
                     <SelectControl label="Style" value={settings.style} onChange={(value) => updateSetting("style", value)} options={Object.entries(STYLE_LABELS)} />
                     {settings.style === "mosaic" && <SelectControl label="Tile Shape" value={settings.tileShape} onChange={(value) => updateSetting("tileShape", value)} options={[["square", "Square"], ["wide", "Wide"], ["tall", "Tall"]]} />}
                     {settings.style === "3d" && (
@@ -2218,7 +2202,7 @@ function App() {
                     </div>
                   </ControlCard>
 
-                  <ControlCard eyebrow="04 background" title="Background gallery" description="Backdrop source, blur, and transparency.">
+                  <ControlCard title="Background gallery" description="Backdrop source, blur, and transparency.">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <Label className="text-sm font-semibold">Gallery</Label>
                       <Badge variant="outline">34 curated backgrounds</Badge>
@@ -2247,7 +2231,7 @@ function App() {
                     <RangeControl label="Opacity" min={0} max={100} value={settings.backgroundOpacity} suffix="%" onChange={(value) => updateSetting("backgroundOpacity", value)} />
                   </ControlCard>
 
-                  <ControlCard eyebrow="05 calibration" title="Intensity" description="Coverage, edge response, tone, and gamma.">
+                  <ControlCard title="Intensity" description="Coverage, edge response, tone, and gamma.">
                     <div className="grid gap-2">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <Label className="text-xs font-medium text-muted-foreground">Quality Presets</Label>
@@ -2284,7 +2268,7 @@ function App() {
                 </TabsContent>
 
                 <TabsContent value="motion" className="grid gap-4">
-                  <ControlCard eyebrow="06 motion" title="Interactive Motion" description="Pointer field, idle movement, turbulence, and trails.">
+                  <ControlCard title="Interactive Motion" description="Pointer field, idle movement, turbulence, and trails.">
                     <ToggleControl label="Enable Interaction" checked={settings.interactiveMotion} onChange={(value) => updateSetting("interactiveMotion", value)} />
                     <div className="grid grid-cols-2 gap-3">
                       <SelectControl label="Behavior" value={settings.pointerMode} onChange={(value) => updateSetting("pointerMode", value)} options={POINTER_MOTION_OPTIONS} />
@@ -2307,7 +2291,7 @@ function App() {
                     </div>
                   </ControlCard>
 
-                  <ControlCard eyebrow="07 animation" title="Animation" description="ASCII timing, reveal style, and intensity.">
+                  <ControlCard title="Animation" description="ASCII timing, reveal style, and intensity.">
                     <ToggleControl label="Animated ASCII" checked={settings.animated} onChange={(value) => updateSetting("animated", value)} />
                     <SelectControl label="Animation Style" value={settings.animationStyle} onChange={(value) => updateSetting("animationStyle", value)} options={[["wave", "Wave"], ["cascade-lr", "Cascade Left to Right"], ["cascade-rl", "Cascade Right to Left"], ["cascade-tb", "Cascade Top to Bottom"], ["reveal", "Reveal"], ["pulse", "Pulse"]]} />
                     <RangeControl label="Speed" min={1} max={8} step={0.1} value={Number((settings.animationSpeed / 1000).toFixed(1))} suffix="s" onChange={(value) => updateSetting("animationSpeed", value * 1000)} />
@@ -2315,7 +2299,7 @@ function App() {
                     <RangeControl label="Randomness" min={0} max={100} value={settings.animationRandomness} suffix="%" onChange={(value) => updateSetting("animationRandomness", value)} />
                   </ControlCard>
 
-                  <ControlCard eyebrow="08 lighting" title="Lights" description="Place and shape up to four glow sources.">
+                  <ControlCard title="Lights" description="Place and shape up to four glow sources.">
                     <div className="flex flex-wrap items-center gap-2">
                       <ToggleControl label="Enable Lights" checked={settings.lights} onChange={toggleLights} />
                       <Badge variant="outline" className="w-fit">{lights.length} / 4</Badge>
@@ -2384,7 +2368,7 @@ function App() {
                     )}
                   </ControlCard>
 
-                  <ControlCard eyebrow="09 mask" title="Mask" description="Draw, invert, and edit the visible glyph area.">
+                  <ControlCard title="Mask" description="Draw, invert, and edit the visible glyph area.">
                     <ToggleControl label="Enable Mask" checked={settings.mask} onChange={toggleMask} />
                     <div className="flex flex-wrap items-center gap-2">
                       <Button variant={canvasTool === "mask" ? "secondary" : "outline"} onClick={canvasTool === "mask" ? clearCanvasTool : activateMaskTool}>
@@ -2405,7 +2389,7 @@ function App() {
                 </TabsContent>
 
                 <TabsContent value="finish" className="grid gap-4">
-                  <ControlCard eyebrow="10 export" title="Export" description="Format, resolution, duration, and frame rate.">
+                  <ControlCard title="Export" description="Format, resolution, duration, and frame rate.">
                     <div className="grid grid-cols-2 gap-3">
                       <SelectControl label="Format" value={settings.exportFormat} onChange={(value) => updateSetting("exportFormat", value)} options={EXPORT_FORMATS} />
                       <SelectControl label="Resolution" value={settings.exportScale} onChange={(value) => updateSetting("exportScale", Number(value))} options={[["1", "1x"], ["2", "2x"], ["3", "3x"], ["4", "4x"]]} />
@@ -2418,7 +2402,7 @@ function App() {
                     </Button>
                   </ControlCard>
 
-                  <ControlCard eyebrow="11 finish stack" title="Post-processing" description="Final passes applied before export.">
+                  <ControlCard title="Post-processing" description="Final passes applied before export.">
                     <div className="grid gap-2">{effectControls}</div>
                     {settings.effects.colorOverlay && (
                       <>
@@ -2432,7 +2416,7 @@ function App() {
                     )}
                   </ControlCard>
 
-                  <ControlCard eyebrow="12 framing" title="Crop & Rotate" description="Adjust the source frame before rendering.">
+                  <ControlCard title="Crop & Rotate" description="Adjust the source frame before rendering.">
                     <Button variant="outline" onClick={() => setModal("crop")}><CropIcon data-icon="inline-start" />Crop / Rotate</Button>
                   </ControlCard>
 
@@ -2447,6 +2431,7 @@ function App() {
             </div>
           </ScrollArea>
         </aside>
+      </div>
       </div>
 
       <Dialog open={Boolean(modal)} onOpenChange={(open) => !open && setModal(null)}>
