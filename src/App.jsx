@@ -117,11 +117,43 @@ const VIDEO_DEMO_PRESETS = Array.from({ length: 3 }, (_, index) => ({
   label: `Video ${String(index + 1).padStart(2, "0")}`
 }));
 
-const BACKGROUND_PRESETS = [
-  { id: 1, label: "Background 01", colors: ["#101820", "#fee715", "#1f7a8c"] },
-  { id: 2, label: "Background 02", colors: ["#0b132b", "#5bc0be", "#fca311"] },
-  { id: 3, label: "Background 03", colors: ["#2b2d42", "#ef233c", "#8d99ae"] },
-  { id: 4, label: "Background 04", colors: ["#031d44", "#ff7d00", "#f9c74f"] }
+const BACKGROUND_PALETTES = [
+  ["#101820", "#fee715", "#1f7a8c"],
+  ["#0b132b", "#5bc0be", "#fca311"],
+  ["#2b2d42", "#ef233c", "#8d99ae"],
+  ["#031d44", "#ff7d00", "#f9c74f"],
+  ["#011627", "#2ec4b6", "#ff9f1c"],
+  ["#121212", "#ff4d6d", "#48cae4"],
+  ["#132a13", "#90a955", "#ecf39e"],
+  ["#240046", "#ff9e00", "#9d4edd"],
+  ["#001219", "#0a9396", "#ee9b00"],
+  ["#22223b", "#c9ada7", "#f2e9e4"],
+  ["#003049", "#d62828", "#f77f00"],
+  ["#03045e", "#00b4d8", "#caf0f8"]
+];
+
+const BACKGROUND_PRESETS = Array.from({ length: 34 }, (_, index) => {
+  const colors = BACKGROUND_PALETTES[index % BACKGROUND_PALETTES.length];
+  return {
+    id: index + 1,
+    label: `Background ${String(index + 1).padStart(2, "0")}`,
+    colors
+  };
+});
+
+const CHANGELOG_ENTRIES = [
+  {
+    title: "Parity Rebuild",
+    description: "31 demos, 34 backgrounds, video controls, GIF/MP4 exports, crop, lights, masks, and post-processing."
+  },
+  {
+    title: "Editor Controls",
+    description: "Cube and disco controls, effect intensity sliders, export duration/FPS, and a responsive shadcn shell."
+  },
+  {
+    title: "Feedback",
+    description: "Bug and feature reporting with captured technical details plus sent and retry states."
+  }
 ];
 
 const EFFECT_AMOUNT_CONTROLS = {
@@ -242,6 +274,10 @@ function downloadBlob(blob, filename) {
 
 function getCanvasPoint(event, canvas) {
   const rect = canvas.getBoundingClientRect();
+  return getRelativePoint(event, rect);
+}
+
+function getRelativePoint(event, rect) {
   return {
     x: clamp((event.clientX - rect.left) / rect.width, 0, 1),
     y: clamp((event.clientY - rect.top) / rect.height, 0, 1)
@@ -421,6 +457,43 @@ function ControlCard({ title, description, children }) {
       </CardHeader>
       <CardContent className="flex flex-col gap-4">{children}</CardContent>
     </Card>
+  );
+}
+
+function ChangelogPage({ onBack }) {
+  return (
+    <div className="min-h-screen bg-background p-4 lg:p-8">
+      <main className="mx-auto flex max-w-3xl flex-col gap-6">
+        <Button asChild variant="outline" className="w-fit">
+          <a
+            href="/"
+            onClick={(event) => {
+              event.preventDefault();
+              onBack();
+            }}
+          >
+            Back to ASCII Magic
+          </a>
+        </Button>
+        <div className="flex flex-col gap-2">
+          <Badge variant="secondary" className="w-fit">Public editor notes</Badge>
+          <h1 className="text-4xl font-semibold tracking-tight">Changelog</h1>
+          <p className="text-sm text-muted-foreground">
+            Current parity surface for the ASCII Magic recreation, including editor controls, export behavior, and feedback states.
+          </p>
+        </div>
+        <div className="flex flex-col gap-3">
+          {CHANGELOG_ENTRIES.map((entry) => (
+            <Card key={entry.title}>
+              <CardHeader>
+                <CardTitle>{entry.title}</CardTitle>
+                <CardDescription>{entry.description}</CardDescription>
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
+      </main>
+    </div>
   );
 }
 
@@ -652,7 +725,7 @@ function drawStyledCell(ctx, cell, settings, tick, width, height) {
       ctx.strokeRect(cell.x + insetX, cell.y + insetY, cell.w * 0.76, cell.h * 0.72);
     }
   } else if (settings.style === "disco") {
-    const randomOffset = settings.discoRandomize ? (cell.x * 3 + cell.y * 5) : 0;
+    const randomOffset = settings.discoRandomize ? (cell.x * 3 + cell.y * 5 + (settings.discoSeed || 0) * 97) : 0;
     const hue = (randomOffset + (cell.x + cell.y) * (settings.discoUniformity / 120) + tick * 0.04) % 360;
     ctx.fillStyle = `hsl(${hue}, 95%, ${45 + (1 - cell.luminance / 255) * 35}%)`;
     ctx.beginPath();
@@ -700,6 +773,10 @@ function App() {
   const [modal, setModal] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [demoSeed, setDemoSeed] = useState(0);
+  const [fileMeta, setFileMeta] = useState(null);
+  const [sourceStats, setSourceStats] = useState(null);
+  const [feedbackState, setFeedbackState] = useState({ bug: "idle", feature: "idle" });
+  const [route, setRoute] = useState(() => (typeof window === "undefined" ? "/" : window.location.pathname));
   const canvasRef = useRef(null);
   const sourceImageRef = useRef(null);
   const backgroundImageRef = useRef(null);
@@ -708,22 +785,49 @@ function App() {
   const frameRef = useRef(0);
   const drawingStrokeRef = useRef(null);
   const cropDragRef = useRef(null);
+  const lightDragRef = useRef(null);
+  const analyticsEventsRef = useRef([]);
 
   const activeLightIndex = useMemo(() => lights.findIndex((light) => light.id === activeLightId), [activeLightId, lights]);
   const activeLight = activeLightIndex >= 0 ? lights[activeLightIndex] : null;
 
-  const updateSetting = useCallback((key, value) => {
-    setSettings((current) => ({ ...current, [key]: value }));
+  const navigate = useCallback((path) => {
+    window.history.pushState({}, "", path);
+    setRoute(path);
   }, []);
+
+  const trackEvent = useCallback((name, detail = {}) => {
+    const event = {
+      name,
+      detail,
+      at: new Date().toISOString()
+    };
+    analyticsEventsRef.current = [...analyticsEventsRef.current.slice(-99), event];
+    window.__ASCII_MAGIC_EVENTS__ = analyticsEventsRef.current;
+    window.dispatchEvent(new CustomEvent("ascii-magic:analytics", { detail: event }));
+  }, []);
+
+  const updateSetting = useCallback((key, value) => {
+    trackEvent("setting_change", { key, value });
+    setSettings((current) => ({ ...current, [key]: value }));
+  }, [trackEvent]);
 
   const updateEffect = useCallback((key, value) => {
+    trackEvent("post_fx_change", { key, value });
     setSettings((current) => ({ ...current, effects: { ...current.effects, [key]: value } }));
-  }, []);
+  }, [trackEvent]);
 
-  const loadSource = useCallback((url, name = "Custom source", kind = "image") => {
+  const loadSource = useCallback((url, name = "Custom source", kind = "image", meta = null) => {
     setSourceUrl(url);
     setSourceName(name);
     setSourceKind(kind);
+    setSourceStats(null);
+    setFileMeta(meta || {
+      name,
+      type: kind === "video" ? "video/*" : kind === "video-demo" ? "generated/video-demo" : "generated/image",
+      size: 0
+    });
+    trackEvent("source_loaded", { kind, name });
     if (kind === "video") {
       sourceImageRef.current = null;
       setVideoUrl(url);
@@ -733,7 +837,7 @@ function App() {
       setSeek(0);
     }
     setStatus(`${name} loaded`);
-  }, []);
+  }, [trackEvent]);
 
   const loadDemo = useCallback(() => {
     const nextSeed = demoSeed + 1;
@@ -754,14 +858,15 @@ function App() {
     setMaskStrokes([]);
     setCrop({ x: 0, y: 0, w: 1, h: 1, rotation: 0 });
     setSettings((current) => ({ ...current, animated: true, animationStyle: id === 1 ? "wave" : id === 2 ? "cascade-lr" : "pulse" }));
-    loadSource(createDemoDataUrl(seed), `Video Demo ${String(id).padStart(2, "0")}`);
+    loadSource(createDemoDataUrl(seed), `Video Demo ${String(id).padStart(2, "0")}`, "video-demo");
   }, [loadSource]);
 
   const loadBackgroundPreset = useCallback((id) => {
     setBackgroundUrl(createBackgroundDataUrl(id));
     setSettings((current) => ({ ...current, backgroundMode: "original", backgroundOpacity: 100 }));
+    trackEvent("background_gallery_select", { id });
     setStatus(`Background ${String(id).padStart(2, "0")} applied`);
-  }, []);
+  }, [trackEvent]);
 
   const handleFile = useCallback((file) => {
     if (!file) return;
@@ -769,7 +874,11 @@ function App() {
       setStatus("Unsupported file type");
       return;
     }
-    loadSource(URL.createObjectURL(file), file.name || "Upload", file.type.startsWith("video/") ? "video" : "image");
+    loadSource(URL.createObjectURL(file), file.name || "Upload", file.type.startsWith("video/") ? "video" : "image", {
+      name: file.name || "Upload",
+      type: file.type || "unknown",
+      size: file.size || 0
+    });
   }, [loadSource]);
 
   const handlePaste = useCallback((event) => {
@@ -782,6 +891,7 @@ function App() {
       setStatus("Maximum of 4 lights reached");
       return;
     }
+    const shouldBumpFont = Number(settings.fontSize || 0) < 12;
     const lightNumber = lights.length + 1;
     const id = `light-${Date.now()}-${lightNumber}`;
     const nextLight = {
@@ -795,9 +905,10 @@ function App() {
     };
     setLights((current) => [...current, nextLight]);
     setActiveLightId(id);
-    setSettings((current) => ({ ...current, lights: true }));
-    setStatus(`Light ${lightNumber} active`);
-  }, [lights.length]);
+    setSettings((current) => ({ ...current, lights: true, fontSize: Math.max(Number(current.fontSize || 0), 12) }));
+    trackEvent("light_add", { count: lightNumber });
+    setStatus(shouldBumpFont ? "Bumped font size to 12 for lighting performance" : `Light ${lightNumber} active`);
+  }, [lights.length, settings.fontSize, trackEvent]);
 
   const updateActiveLight = useCallback((key, value) => {
     setLights((current) => current.map((light) => (
@@ -811,6 +922,45 @@ function App() {
     setActiveLightId(null);
     setStatus("Light deleted");
   }, [activeLight]);
+
+  const updateLightPosition = useCallback((id, point) => {
+    setLights((current) => current.map((light) => (
+      light.id === id ? { ...light, x: clamp(point.x, 0, 1), y: clamp(point.y, 0, 1) } : light
+    )));
+  }, []);
+
+  const handleLightPadPointerDown = useCallback((event) => {
+    if (event.target !== event.currentTarget) return;
+    const point = getRelativePoint(event, event.currentTarget.getBoundingClientRect());
+    addLight(point);
+  }, [addLight]);
+
+  const startLightPadDrag = useCallback((event, light, index) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const pad = event.currentTarget.closest("[data-light-pad]");
+    if (!pad) return;
+    lightDragRef.current = {
+      id: light.id,
+      rect: pad.getBoundingClientRect()
+    };
+    setActiveLightId(light.id);
+    setStatus(`Light ${index + 1} active`);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }, []);
+
+  const moveLightPadDrag = useCallback((event) => {
+    const drag = lightDragRef.current;
+    if (!drag) return;
+    updateLightPosition(drag.id, getRelativePoint(event, drag.rect));
+  }, [updateLightPosition]);
+
+  const finishLightPadDrag = useCallback((event) => {
+    if (!lightDragRef.current) return;
+    lightDragRef.current = null;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    setStatus("Light moved");
+  }, []);
 
   const commitCrop = useCallback((nextCrop) => {
     setCrop((current) => {
@@ -1046,6 +1196,12 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
+    const handlePopState = () => setRoute(window.location.pathname);
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
   }, [handlePaste]);
@@ -1055,11 +1211,16 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!sourceUrl || sourceKind !== "image") return undefined;
+    if (!sourceUrl || sourceKind === "video") return undefined;
     const image = new Image();
     image.crossOrigin = "anonymous";
     image.onload = () => {
       sourceImageRef.current = image;
+      setSourceStats({
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+        duration: null
+      });
       draw();
     };
     image.src = sourceUrl;
@@ -1186,6 +1347,7 @@ function App() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const format = settings.exportFormat;
+    trackEvent("export_click", { format, scale: settings.exportScale, fps: settings.exportFps });
     try {
       if (format === "gif") {
         await exportGif(canvas);
@@ -1212,7 +1374,7 @@ function App() {
     link.download = `ascii-magic.${format === "jpg" ? "jpg" : "png"}`;
     link.click();
     setStatus(`Exported ${format.toUpperCase()} at ${settings.exportScale}x`);
-  }, [exportGif, exportRecordedVideo, settings.exportFormat, settings.exportScale]);
+  }, [exportGif, exportRecordedVideo, settings.exportFormat, settings.exportFps, settings.exportScale, trackEvent]);
 
   const playVideo = useCallback(async () => {
     const video = videoRef.current;
@@ -1254,6 +1416,35 @@ function App() {
     setStatus(`Speed ${rate}x`);
   }, []);
 
+  const technicalDetails = useMemo(() => {
+    const activeEffects = Object.entries(settings.effects)
+      .filter(([, value]) => value === true)
+      .map(([key]) => EFFECTS.find(([effectKey]) => effectKey === key)?.[1] || key)
+      .join(", ") || "none";
+    const canvas = canvasRef.current;
+    const fileSize = fileMeta?.size ? `${Math.round(fileMeta.size / 1024)} KB` : "generated";
+    const sourceResolution = sourceStats?.width
+      ? `${sourceStats.width}x${sourceStats.height}${sourceStats.duration ? `, ${sourceStats.duration.toFixed(1)}s` : ""}`
+      : "pending";
+    const connection = navigator.connection?.effectiveType || navigator.connection?.type || "unknown";
+    return [
+      `Source: ${sourceName || "none"} (${sourceKind})`,
+      `File: ${fileMeta?.name || "none"}, ${fileMeta?.type || "unknown"}, ${fileSize}`,
+      `Source resolution: ${sourceResolution}`,
+      `Canvas: ${canvas?.width || 0}x${canvas?.height || 0}`,
+      `Screen: ${window.screen?.width || 0}x${window.screen?.height || 0}, DPR ${window.devicePixelRatio || 1}`,
+      `Viewport: ${window.innerWidth || 0}x${window.innerHeight || 0}`,
+      `Connection: ${connection}`,
+      `Style: ${settings.style}`,
+      `Export: ${settings.exportFormat} ${settings.exportScale}x ${settings.exportDuration}s ${settings.exportFps}fps`,
+      `Effects: ${activeEffects}`,
+      `Lights: ${lights.length}`,
+      `Mask strokes: ${maskStrokes.length}`,
+      `Analytics events: ${analyticsEventsRef.current.length}`,
+      `UA: ${navigator.userAgent}`
+    ].join(" | ");
+  }, [fileMeta, lights.length, maskStrokes.length, settings, sourceKind, sourceName, sourceStats]);
+
   const effectControls = useMemo(() => EFFECTS.map(([key, label]) => (
     <React.Fragment key={key}>
       <ToggleControl label={label} checked={settings.effects[key]} onChange={(value) => updateEffect(key, value)} />
@@ -1269,6 +1460,10 @@ function App() {
       ) : null}
     </React.Fragment>
   )), [settings.effects, updateEffect]);
+
+  if (route === "/changelog") {
+    return <ChangelogPage onBack={() => navigate("/")} />;
+  }
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_16%_10%,rgba(255,42,127,.18),transparent_26%),radial-gradient(circle_at_80%_0%,rgba(33,212,253,.18),transparent_25%)]">
@@ -1327,6 +1522,11 @@ function App() {
                   onLoadedMetadata={(event) => {
                     const nextDuration = Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 100;
                     setDuration(Math.max(0.1, nextDuration));
+                    setSourceStats({
+                      width: event.currentTarget.videoWidth,
+                      height: event.currentTarget.videoHeight,
+                      duration: nextDuration
+                    });
                     draw();
                   }}
                   onLoadedData={() => draw()}
@@ -1373,7 +1573,15 @@ function App() {
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <a href="#changelog">Changelog</a>
+                  <a
+                    href="/changelog"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      navigate("/changelog");
+                    }}
+                  >
+                    Changelog
+                  </a>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -1442,9 +1650,9 @@ function App() {
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center justify-between gap-3">
                         <Label className="text-sm font-medium">Background gallery</Label>
-                        <Badge variant="outline">backdrops</Badge>
+                        <Badge variant="outline">34 curated backgrounds</Badge>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid max-h-48 grid-cols-2 gap-2 overflow-y-auto pr-1">
                         {BACKGROUND_PRESETS.map((background) => (
                           <Button
                             key={background.id}
@@ -1484,7 +1692,7 @@ function App() {
                     <RangeControl label="Seek" min={0} max={Math.max(0.1, duration)} step={0.1} value={Number(seek.toFixed(1))} onChange={updateSeek} />
                     <SelectControl label="Speed" value={playbackRate} onChange={updatePlaybackRate} options={[["0.25", "0.25x"], ["0.5", "0.5x"], ["1", "1x"], ["1.5", "1.5x"], ["2", "2x"]]} />
                     <Badge variant="secondary" className="w-fit">FPS 30</Badge>
-                    <Badge variant="outline" className="w-fit">{sourceKind === "video" ? "Video source" : "Image source"}</Badge>
+                    <Badge variant="outline" className="w-fit">{sourceKind.startsWith("video") ? "Video source" : "Image source"}</Badge>
                   </ControlCard>
                 </TabsContent>
 
@@ -1509,7 +1717,24 @@ function App() {
                       <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3">
                         <Label className="text-sm font-medium">Disco controls</Label>
                         <RangeControl label="Uniformity" min={0} max={100} value={settings.discoUniformity} suffix="%" onChange={(value) => updateSetting("discoUniformity", value)} />
-                        <ToggleControl label="Pattern Randomize" checked={settings.discoRandomize} onChange={(value) => updateSetting("discoRandomize", value)} />
+                        <div className="flex items-center justify-between gap-3 rounded-lg border bg-card/60 px-3 py-2">
+                          <Label className="text-sm">Pattern</Label>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSettings((current) => ({
+                                ...current,
+                                discoRandomize: true,
+                                discoSeed: (current.discoSeed || 0) + 1
+                              }));
+                              trackEvent("disco_randomize", { seed: (settings.discoSeed || 0) + 1 });
+                              setStatus("Disco pattern randomized");
+                            }}
+                          >
+                            Randomize ↻
+                          </Button>
+                        </div>
                       </div>
                     )}
                     <RangeControl label="Font Size" min={3} max={48} value={settings.fontSize} onChange={(value) => updateSetting("fontSize", value)} />
@@ -1553,6 +1778,7 @@ function App() {
 
                   <ControlCard title="Lights" description="Place lights, shape glow, and push the ASCII surface.">
                     <ToggleControl label="Enable Lights" checked={settings.lights} onChange={(value) => updateSetting("lights", value)} />
+                    <Badge variant="outline" className="w-fit">{lights.length} / 4</Badge>
                     <div className="grid grid-cols-2 gap-2">
                       <Button variant="outline" onClick={() => addLight()}>
                         <SparklesIcon data-icon="inline-start" />
@@ -1563,7 +1789,14 @@ function App() {
                         Delete
                       </Button>
                     </div>
-                    <div className="relative h-28 overflow-hidden rounded-lg border bg-muted/40">
+                    <div
+                      data-light-pad
+                      className="relative h-28 touch-none overflow-hidden rounded-lg border bg-muted/40"
+                      onPointerDown={handleLightPadPointerDown}
+                      onPointerMove={moveLightPadDrag}
+                      onPointerUp={finishLightPadDrag}
+                      onPointerCancel={finishLightPadDrag}
+                    >
                       {lights.length ? lights.map((light, index) => (
                         <button
                           key={light.id}
@@ -1571,6 +1804,10 @@ function App() {
                           aria-label={`Select light ${index + 1}`}
                           className="absolute size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border bg-primary text-[10px] font-semibold text-primary-foreground shadow-[0_0_28px_hsl(var(--primary))]"
                           style={{ left: `${light.x * 100}%`, top: `${light.y * 100}%` }}
+                          onPointerDown={(event) => startLightPadDrag(event, light, index)}
+                          onPointerMove={moveLightPadDrag}
+                          onPointerUp={finishLightPadDrag}
+                          onPointerCancel={finishLightPadDrag}
                           onClick={() => {
                             setActiveLightId(light.id);
                             setStatus(`Light ${index + 1} active`);
@@ -1579,9 +1816,17 @@ function App() {
                           {index + 1}
                         </button>
                       )) : (
-                        <div className="grid h-full place-items-center text-xs text-muted-foreground">tap preview or add a light</div>
+                        <div className="grid h-full place-items-center px-4 text-center text-xs text-muted-foreground">Tap to add a light</div>
                       )}
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      Tap to add a light. Drag dots to move. Click a dot to select. Up to 4 lights.
+                    </p>
+                    {settings.lights && Number(settings.fontSize || 0) <= 12 ? (
+                      <p className="text-xs text-muted-foreground">
+                        Bumped font size to 12 - lighting at very small font sizes can stall the render. You can lower it back, but expect lag.
+                      </p>
+                    ) : null}
                     {activeLight ? (
                       <>
                         <Badge variant="secondary" className="w-fit">Light {activeLightIndex + 1} selected</Badge>
@@ -1652,7 +1897,21 @@ function App() {
                 <DialogTitle>About</DialogTitle>
                 <DialogDescription>ASCII Magic turns images and videos into stylized ASCII art with export-ready controls.</DialogDescription>
               </DialogHeader>
-              <p className="text-sm text-muted-foreground">This recreation follows the public editor surface and keeps parity gaps visible for follow-up slices.</p>
+              <div className="flex flex-col gap-3 text-sm text-muted-foreground">
+                <p>Built as a local recreation of the public ASCII Magic editor surface, including generated substitute media for the demo and background workflows.</p>
+                <p>Project by Kailash.</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild variant="outline" size="sm">
+                    <a href="https://backgrounds.supply">backgrounds.supply</a>
+                  </Button>
+                  <Button asChild variant="outline" size="sm">
+                    <a href="https://www.instagram.com/kail.designs">Instagram</a>
+                  </Button>
+                  <Button asChild variant="outline" size="sm">
+                    <a href="https://x.com/kail_designs">X</a>
+                  </Button>
+                </div>
+              </div>
             </>
           )}
           {modal === "bug" && (
@@ -1665,12 +1924,33 @@ function App() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm">Technical details (auto-captured)</CardTitle>
-                  <CardDescription className="break-all">{navigator.userAgent}</CardDescription>
+                  <CardDescription className="break-all">{technicalDetails}</CardDescription>
                 </CardHeader>
               </Card>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setModal(null)}>Cancel</Button>
-                <Button onClick={() => { setStatus("Bug report ready to send"); setModal(null); }}>Send Report</Button>
+                {feedbackState.bug === "sent" ? (
+                  <>
+                    <Button disabled>Sent</Button>
+                    <Button variant="outline" onClick={() => {
+                      setFeedbackState((current) => ({ ...current, bug: "idle" }));
+                      setStatus("Bug report ready to retry");
+                    }}
+                    >
+                      Retry
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="outline" onClick={() => setModal(null)}>Cancel</Button>
+                    <Button onClick={() => {
+                      setFeedbackState((current) => ({ ...current, bug: "sent" }));
+                      setStatus("Bug report sent");
+                    }}
+                    >
+                      Send Report
+                    </Button>
+                  </>
+                )}
               </DialogFooter>
             </>
           )}
@@ -1682,8 +1962,29 @@ function App() {
               </DialogHeader>
               <Textarea placeholder="What should ASCII Magic do next?" />
               <DialogFooter>
-                <Button variant="outline" onClick={() => setModal(null)}>Cancel</Button>
-                <Button onClick={() => { setStatus("Feature suggestion ready to send"); setModal(null); }}>Send Suggestion</Button>
+                {feedbackState.feature === "sent" ? (
+                  <>
+                    <Button disabled>Sent</Button>
+                    <Button variant="outline" onClick={() => {
+                      setFeedbackState((current) => ({ ...current, feature: "idle" }));
+                      setStatus("Feature suggestion ready to retry");
+                    }}
+                    >
+                      Retry
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="outline" onClick={() => setModal(null)}>Cancel</Button>
+                    <Button onClick={() => {
+                      setFeedbackState((current) => ({ ...current, feature: "sent" }));
+                      setStatus("Feature suggestion sent");
+                    }}
+                    >
+                      Send Suggestion
+                    </Button>
+                  </>
+                )}
               </DialogFooter>
             </>
           )}

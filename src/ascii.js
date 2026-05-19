@@ -61,6 +61,7 @@ export function createDefaultSettings() {
     cubeFlipLight: false,
     discoUniformity: 68,
     discoRandomize: true,
+    discoSeed: 0,
     fontSize: 11,
     characterSet: "standard",
     characters: CHAR_SETS.standard,

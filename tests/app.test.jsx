@@ -2,10 +2,14 @@ import "@testing-library/jest-dom/vitest";
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import App from "../src/App.jsx";
 
 describe("ASCII Magic app shell", () => {
+  afterEach(() => {
+    window.history.pushState({}, "", "/");
+  });
+
   it("renders the primary editor controls and can generate a demo", async () => {
     render(<App />);
 
@@ -62,5 +66,46 @@ describe("ASCII Magic app shell", () => {
     expect(screen.getAllByLabelText(/Crop handle/i)).toHaveLength(8);
     expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Redo" })).toBeInTheDocument();
+  });
+
+  it("covers the remaining hard parity surfaces the previous audit missed", async () => {
+    render(<App />);
+
+    expect(screen.getByText("34 curated backgrounds")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Background 34" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Video 01" }));
+    expect(screen.getByText(/Video Demo 01 loaded/i)).toBeInTheDocument();
+    expect(screen.getByText("Video source")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("tab", { name: "Motion" }));
+    expect(screen.getByText("0 / 4")).toBeInTheDocument();
+    expect(screen.getByText("Tap to add a light. Drag dots to move. Click a dot to select. Up to 4 lights.")).toBeInTheDocument();
+  });
+
+  it("supports the standalone changelog route", () => {
+    window.history.pushState({}, "", "/changelog");
+
+    render(<App />);
+
+    expect(screen.getByRole("heading", { name: "Changelog" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back to ASCII Magic" })).toBeInTheDocument();
+  });
+
+  it("shows feedback sent and retry states with captured technical details", async () => {
+    render(<App />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Menu" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Report a Bug" }));
+
+    expect(screen.getByText("Technical details (auto-captured)")).toBeInTheDocument();
+    expect(screen.getByText(/Source:/)).toBeInTheDocument();
+    expect(screen.getByText(/Source resolution:/)).toBeInTheDocument();
+    expect(screen.getByText(/Screen:/)).toBeInTheDocument();
+    expect(screen.getByText(/Connection:/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Send Report" }));
+    expect(screen.getByRole("button", { name: "Sent" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
 });

@@ -477,8 +477,8 @@ tasks:
       - "Next task if not complete."
     receipt:
       result: done
-      decision: complete
-      full_outcome_complete: true
+      decision: not_complete
+      full_outcome_complete: false
       coverage_map:
         source_upload_paste_demo: "Covered by drag/drop/click/paste source handling, Inspire Me, 31 image demo controls, 3 video-demo controls, and background gallery controls."
         exports: "Covered by PNG/JPG export, GIF encoder, MP4/WebM MediaRecorder fallback, resolution selector, duration selector, FPS selector, progress statuses, and fallback statuses."
@@ -496,15 +496,127 @@ tasks:
         - "git diff --check: pass"
         - "GoalBuddy state checker: pass"
         - "Browser smoke at http://127.0.0.1:5174/: pass"
-      summary: "Final audit accepts feature parity for the local recreation's user-visible workflows, controls, render behavior, and export paths, with generated local media substituted for proprietary public demo assets."
+      summary: "User rejected the previous completion. Reopened for the remaining hard parity gaps: 34-background gallery, real video-demo source behavior, direct light-drag instructions/interaction, standalone changelog route, and feedback sent/retry technical-details states."
+      next_task: T008
+  - id: T008
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Close the user-rejected parity gaps: 34-background gallery surface, real video-demo source behavior, direct light-drag UX, standalone /changelog route, and feedback sent/retry states with richer technical details."
+    inputs:
+      - "User feedback: full feature parity"
+      - "Live site evidence from https://www.ascii-magic.com/ and https://www.ascii-magic.com/changelog"
+      - "T001 public feature inventory"
+      - "Current app implementation"
+    constraints:
+      - "Keep shadcn/radix-nova UI patterns."
+      - "Preserve the existing canvas rendering foundation."
+      - "Do not claim completion until tests, build, browser checks, and GoalBuddy state checker pass."
+      - "Follow project instruction: always commit in small batches when committing."
+    expected_output:
+      - "Implemented remaining hard parity surfaces."
+      - "Updated tests proving the user-visible parity controls and routes exist."
+      - "Verification commands and browser checks."
+    allowed_files:
+      - "src/**"
+      - "tests/**"
+      - "docs/goals/ascii-magic-parity/state.yaml"
+    verify:
+      - "npm run test"
+      - "npm run build"
+      - "git diff --check"
+      - "Browser smoke check at http://127.0.0.1:5174/"
+      - "GoalBuddy state checker"
+    stop_if:
+      - "Need proprietary public-site assets, credentials, paid services, destructive operations, or server-side encoders."
+      - "Verification fails twice for the same underlying reason."
+    receipt:
+      result: done
+      changed_files:
+        - "src/App.jsx"
+        - "src/ascii.js"
+        - "tests/app.test.jsx"
+        - "docs/goals/ascii-magic-parity/state.yaml"
+      implemented:
+        - "Expanded the background gallery to 34 generated curated-background slots with the exact visible count and Background 34 control."
+        - "Loaded video demos as video-demo sources so the public workflow reports Video source while preserving local generated media."
+        - "Added direct light-pad drag behavior, 0/4 count, the public instruction copy, and the lighting font-size performance note."
+        - "Added a standalone /changelog route with Back to ASCII Magic navigation."
+        - "Added feedback sent/retry states and richer auto-captured technical details: source, file metadata, source resolution, screen, viewport, connection, render settings, effects, lights, mask, analytics event count, and UA."
+        - "Added live-source polish for Disco pattern randomize, About project credit/social links, and local analytics-style event capture."
+      verification:
+        - "npm run test -- tests/app.test.jsx: pass"
+        - "npm run test: pass"
+        - "npm run build: pass"
+        - "git diff --check: pass"
+        - "Browser smoke at http://127.0.0.1:5174/: pass; checked 34-background gallery, video-demo Video source badge, light count/instruction/perf note, actual light drag movement, /changelog, feedback technical details, sent/retry states, and zero console errors."
+      commands:
+        - cmd: "npm run test -- tests/app.test.jsx"
+          status: pass
+        - cmd: "npm run test"
+          status: pass
+        - cmd: "npm run build"
+          status: pass
+        - cmd: "git diff --check"
+          status: pass
+        - cmd: "Browser smoke check at http://127.0.0.1:5174/"
+          status: pass
+      source_evidence:
+        - "https://www.ascii-magic.com/"
+        - "https://www.ascii-magic.com/changelog"
+      summary: "Closed the hard gaps from the user's rejection and refreshed against the live public site before final audit."
+      next_task: T009
+  - id: T009
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: default
+    objective: "Final re-audit after T008 against the live public ASCII Magic feature inventory and the user's full feature parity request."
+    inputs:
+      - "T001 public feature inventory"
+      - "T008 implementation receipt"
+      - "Live site refresh on 2026-05-19"
+      - "Automated and browser verification receipts"
+    constraints:
+      - "Judge full user-visible workflow parity, not exact proprietary media identity."
+      - "Reject completion if any discovered public workflow, control, conversion behavior, export/copy path, responsive state, or important error state remains unimplemented or unverified."
+    expected_output:
+      - "Completion decision with coverage map and residual risks."
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      coverage_map:
+        source_upload_paste_demo: "Covered by drag/drop/click/paste source handling, Inspire Me, 31 image demo controls, 3 video-demo controls, generated substitute media, background attribution, and 34 background gallery controls."
+        exports: "Covered by PNG/JPG export, GIF encoder, MP4/WebM MediaRecorder fallback, resolution selector, duration selector, FPS selector, progress statuses, and fallback statuses."
+        video_playback: "Covered by video upload support, hidden video source rendering, Play/Stop/Seek/Speed/FPS controls, Video source badge for uploaded videos and video-demo presets, and render-loop integration."
+        crop_rotate: "Covered by Crop / Rotate dialog, rotate left/right, save/cancel, rule-of-thirds surface, 8 handles, undo/redo, and crop state wired into canvas draw."
+        backgrounds_styles_characters_intensity: "Covered by public background modes, 34 gallery slots, style list, mosaic/cube/disco extras, Disco pattern randomize, character set/custom/blend/opacity/invert/grid/randomize controls, and intensity sliders."
+        animation_lights_mask: "Covered by Animated ASCII toggle, distinct animation transforms, speed/intensity/randomness, up-to-4 light placement/editing/delete, light count/instruction/perf note/direct drag behavior, and mask freehand/rect/ellipse drawing with overlay/invert/clear."
+        post_processing: "Covered by stackable post-FX toggles, inline amount sliders, color overlay controls, sparkles, and render passes for CRT/chromatic/bloom/glitch/RGB/blur/pixelate/halftone/grain/dust/sparkles."
+        chrome_feedback_responsive: "Covered by theme/menu/about/bug/feature/changelog surfaces, standalone /changelog, shadcn responsive layout, source-backed About credit/social links, richer technical details, sent/retry feedback states, local analytics-style event capture, desktop browser checks, and automated UI tests."
+      missing_evidence:
+        - "The public site's exact proprietary curated demo/background media and external PostHog project are not copied; local generated substitutes and local event capture preserve user-visible workflows without credentials or asset copying."
+      verification:
+        - "npm run test -- tests/app.test.jsx: pass"
+        - "npm run test: pass"
+        - "npm run build: pass"
+        - "git diff --check: pass"
+        - "Browser smoke at http://127.0.0.1:5174/: pass"
+        - "GoalBuddy state checker: pass"
+      summary: "Final audit accepts full user-visible feature parity for the local recreation, with generated local media substituted for proprietary public assets and local analytics capture substituted for external credentials."
+      next_task: null
 
 checks:
   dirty_fingerprint: unknown
   last_verification:
     result: pass
-    task: T999
+    task: T009
     commands:
+      - "npm run test -- tests/app.test.jsx"
       - "npm run test"
       - "npm run build"
       - "git diff --check"
       - "Browser smoke check at http://127.0.0.1:5174/"
+      - "GoalBuddy state checker"
