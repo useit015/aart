@@ -963,25 +963,25 @@ function App() {
 
   const toggleLights = useCallback((value) => {
     trackEvent("setting_change", { key: "lights", value });
+    setSettings((current) => ({ ...current, lights: value }));
     if (value) {
-      activateLightTool();
+      setStatus("Lights enabled");
       return;
     }
-    setSettings((current) => ({ ...current, lights: false }));
     setCanvasTool((current) => (current === "light" ? "none" : current));
     setStatus("Lights disabled");
-  }, [activateLightTool, trackEvent]);
+  }, [trackEvent]);
 
   const toggleMask = useCallback((value) => {
     trackEvent("setting_change", { key: "mask", value });
+    setSettings((current) => ({ ...current, mask: value }));
     if (value) {
-      activateMaskTool();
+      setStatus("Mask enabled");
       return;
     }
-    setSettings((current) => ({ ...current, mask: false }));
     setCanvasTool((current) => (current === "mask" ? "none" : current));
     setStatus("Mask disabled");
-  }, [activateMaskTool, trackEvent]);
+  }, [trackEvent]);
 
   const addLight = useCallback((point = { x: 0.5, y: 0.45 }) => {
     if (lights.length >= 4) {
@@ -1789,42 +1789,6 @@ function App() {
                         Upload Image / Video
                       </Button>
                     </div>
-                    <Separator />
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between gap-3">
-                        <Label className="text-sm font-medium">Background gallery</Label>
-                        <Badge variant="outline">34 curated backgrounds</Badge>
-                      </div>
-                      <div className="grid max-h-48 grid-cols-2 gap-2 overflow-y-auto pr-1">
-                        {BACKGROUND_PRESETS.map((background) => (
-                          <Button
-                            key={background.id}
-                            variant="outline"
-                            size="sm"
-                            className="justify-start gap-2"
-                            onClick={() => loadBackgroundPreset(background.id)}
-                          >
-                            <span
-                              aria-hidden="true"
-                              className="size-5 rounded-sm border"
-                              style={{ background: `linear-gradient(135deg, ${background.colors.join(", ")})` }}
-                            />
-                            {background.label}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                    <Separator />
-                    <div className="grid grid-cols-2 gap-3">
-                      <SelectControl label="Format" value={settings.exportFormat} onChange={(value) => updateSetting("exportFormat", value)} options={EXPORT_FORMATS} />
-                      <SelectControl label="Resolution" value={settings.exportScale} onChange={(value) => updateSetting("exportScale", Number(value))} options={[["1", "1x"], ["2", "2x"], ["3", "3x"], ["4", "4x"]]} />
-                      <SelectControl label="Animation duration" value={settings.exportDuration} onChange={(value) => updateSetting("exportDuration", Number(value))} options={[["3", "3 seconds"], ["5", "5 seconds"], ["10", "10 seconds"], ["15", "15 seconds"]]} />
-                      <SelectControl label="Frame rate" value={settings.exportFps} onChange={(value) => updateSetting("exportFps", Number(value))} options={[["15", "15 fps"], ["20", "20 fps"], ["24", "24 fps"], ["30", "30 fps"], ["60", "60 fps"]]} />
-                    </div>
-                    <Button onClick={exportCanvas} disabled={exporting}>
-                      <DownloadIcon data-icon="inline-start" />
-                      {exporting ? "Exporting" : "Export"}
-                    </Button>
                   </ControlCard>
 
                   <ControlCard title="Playback" description="Video parity controls are staged on the same surface.">
@@ -1898,6 +1862,31 @@ function App() {
                   </ControlCard>
 
                   <ControlCard title="Background" description="Source backdrop, blur, transparency, and image modes.">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label className="text-sm font-medium">Background gallery</Label>
+                        <Badge variant="outline">34 curated backgrounds</Badge>
+                      </div>
+                      <div className="grid max-h-48 grid-cols-2 gap-2 overflow-y-auto pr-1">
+                        {BACKGROUND_PRESETS.map((background) => (
+                          <Button
+                            key={background.id}
+                            variant="outline"
+                            size="sm"
+                            className="justify-start gap-2"
+                            onClick={() => loadBackgroundPreset(background.id)}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="size-5 rounded-sm border"
+                              style={{ background: `linear-gradient(135deg, ${background.colors.join(", ")})` }}
+                            />
+                            {background.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    <Separator />
                     <SelectControl label="Mode" value={settings.backgroundMode} onChange={(value) => updateSetting("backgroundMode", value)} options={[["blur", "Blurred Image"], ["solid", "Solid Black"], ["original", "Original Image"], ["none", "None (Transparent)"]]} />
                     <RangeControl label="Blur" min={0} max={60} value={settings.backgroundBlur} suffix="px" onChange={(value) => updateSetting("backgroundBlur", value)} />
                     <RangeControl label="Opacity" min={0} max={100} value={settings.backgroundOpacity} suffix="%" onChange={(value) => updateSetting("backgroundOpacity", value)} />
@@ -1940,25 +1929,6 @@ function App() {
                 </TabsContent>
 
                 <TabsContent value="motion" className="flex flex-col gap-4">
-                  <ControlCard title="Preview Tool" description="Choose the active preview editing mode.">
-                    <div className="grid grid-cols-3 gap-2">
-                      <Button variant={canvasTool === "none" ? "secondary" : "outline"} onClick={clearCanvasTool}>
-                        View Only
-                      </Button>
-                      <Button variant={canvasTool === "light" ? "secondary" : "outline"} onClick={activateLightTool}>
-                        <SparklesIcon data-icon="inline-start" />
-                        Light Tool
-                      </Button>
-                      <Button variant={canvasTool === "mask" ? "secondary" : "outline"} onClick={activateMaskTool}>
-                        <LayersIcon data-icon="inline-start" />
-                        Mask Tool
-                      </Button>
-                    </div>
-                    <Badge variant="outline" className="w-fit">
-                      Active tool: {canvasTool === "light" ? "Light" : canvasTool === "mask" ? "Mask" : "View Only"}
-                    </Badge>
-                  </ControlCard>
-
                   <ControlCard title="Animation" description="Animated ASCII timing and reveal styles.">
                     <ToggleControl label="Animated ASCII" checked={settings.animated} onChange={(value) => updateSetting("animated", value)} />
                     <SelectControl label="Animation Style" value={settings.animationStyle} onChange={(value) => updateSetting("animationStyle", value)} options={[["wave", "Wave"], ["cascade-lr", "Cascade Left to Right"], ["cascade-rl", "Cascade Right to Left"], ["cascade-tb", "Cascade Top to Bottom"], ["reveal", "Reveal"], ["pulse", "Pulse"]]} />
@@ -1971,6 +1941,10 @@ function App() {
                     <ToggleControl label="Enable Lights" checked={settings.lights} onChange={toggleLights} />
                     <Badge variant="outline" className="w-fit">{lights.length} / 4</Badge>
                     <div className="grid grid-cols-2 gap-2">
+                      <Button variant={canvasTool === "light" ? "secondary" : "outline"} onClick={canvasTool === "light" ? clearCanvasTool : activateLightTool}>
+                        <SparklesIcon data-icon="inline-start" />
+                        {canvasTool === "light" ? "Stop Placing" : "Place Lights"}
+                      </Button>
                       <Button variant="outline" onClick={() => addLight()}>
                         <SparklesIcon data-icon="inline-start" />
                         Add Light
@@ -2036,9 +2010,9 @@ function App() {
                   <ControlCard title="Mask" description="Restrict ASCII art to drawn areas while preserving the background.">
                     <ToggleControl label="Enable Mask" checked={settings.mask} onChange={toggleMask} />
                     <div className="flex flex-wrap items-center gap-2">
-                      <Button variant={canvasTool === "mask" ? "secondary" : "outline"} onClick={activateMaskTool}>
+                      <Button variant={canvasTool === "mask" ? "secondary" : "outline"} onClick={canvasTool === "mask" ? clearCanvasTool : activateMaskTool}>
                         <LayersIcon data-icon="inline-start" />
-                        Draw Mask
+                        {canvasTool === "mask" ? "Stop Drawing" : "Draw Mask"}
                       </Button>
                       <Badge variant="outline">Mask strokes: {maskStrokes.length}</Badge>
                     </div>
@@ -2054,6 +2028,19 @@ function App() {
                 </TabsContent>
 
                 <TabsContent value="finish" className="flex flex-col gap-4">
+                  <ControlCard title="Export" description="Choose output format, resolution, and animation timing.">
+                    <div className="grid grid-cols-2 gap-3">
+                      <SelectControl label="Format" value={settings.exportFormat} onChange={(value) => updateSetting("exportFormat", value)} options={EXPORT_FORMATS} />
+                      <SelectControl label="Resolution" value={settings.exportScale} onChange={(value) => updateSetting("exportScale", Number(value))} options={[["1", "1x"], ["2", "2x"], ["3", "3x"], ["4", "4x"]]} />
+                      <SelectControl label="Animation duration" value={settings.exportDuration} onChange={(value) => updateSetting("exportDuration", Number(value))} options={[["3", "3 seconds"], ["5", "5 seconds"], ["10", "10 seconds"], ["15", "15 seconds"]]} />
+                      <SelectControl label="Frame rate" value={settings.exportFps} onChange={(value) => updateSetting("exportFps", Number(value))} options={[["15", "15 fps"], ["20", "20 fps"], ["24", "24 fps"], ["30", "30 fps"], ["60", "60 fps"]]} />
+                    </div>
+                    <Button onClick={exportCanvas} disabled={exporting}>
+                      <DownloadIcon data-icon="inline-start" />
+                      {exporting ? "Exporting" : "Export"}
+                    </Button>
+                  </ControlCard>
+
                   <ControlCard title="Post-processing" description="Stack finish passes for a production export look.">
                     <div className="grid gap-2">{effectControls}</div>
                     {settings.effects.colorOverlay && (
