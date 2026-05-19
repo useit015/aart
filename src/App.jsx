@@ -201,7 +201,7 @@ function isCanvasRuntimeAvailable() {
 
 function createDemoDataUrl(seed = 0) {
   if (!isCanvasRuntimeAvailable()) {
-    return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="920" height="640"><rect width="920" height="640" fill="#111018"/><text x="80" y="240" fill="#ffffff" font-family="monospace" font-size="96">ASCII</text><text x="80" y="370" fill="#21d4fd" font-family="monospace" font-size="128">MAGIC ${seed}</text></svg>`)}`;
+    return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="920" height="640"><rect width="920" height="640" fill="#111018"/><text x="80" y="240" fill="#ffffff" font-family="monospace" font-size="96">GLYPH</text><text x="80" y="370" fill="#21d4fd" font-family="monospace" font-size="116">STUDIO ${seed}</text></svg>`)}`;
   }
 
   const canvas = document.createElement("canvas");
@@ -234,9 +234,9 @@ function createDemoDataUrl(seed = 0) {
   ctx.fillRect(0, canvas.height * 0.62, canvas.width, canvas.height * 0.38);
   ctx.fillStyle = "rgba(255,255,255,.87)";
   ctx.font = "700 86px ui-monospace, SFMono-Regular, Menlo, monospace";
-  ctx.fillText("ASCII", 86, 205);
-  ctx.font = "700 132px ui-monospace, SFMono-Regular, Menlo, monospace";
-  ctx.fillText("MAGIC", 84, 338);
+  ctx.fillText("GLYPH", 86, 205);
+  ctx.font = "700 116px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillText("STUDIO", 84, 338);
   return canvas.toDataURL("image/png");
 }
 
@@ -534,14 +534,14 @@ function ChangelogPage({ onBack }) {
               onBack();
             }}
           >
-            Back to ASCII Magic
+            Back to Glyph Studio
           </a>
         </Button>
         <div className="flex flex-col gap-2">
           <Badge variant="secondary" className="w-fit">Public editor notes</Badge>
           <h1 className="text-4xl font-semibold tracking-tight">Changelog</h1>
           <p className="text-sm text-muted-foreground">
-            Current parity surface for the ASCII Magic recreation, including editor controls, export behavior, and feedback states.
+            Current editor surface, including controls, export behavior, and feedback states.
           </p>
         </div>
         <div className="flex flex-col gap-3">
@@ -926,8 +926,8 @@ function App() {
       at: new Date().toISOString()
     };
     analyticsEventsRef.current = [...analyticsEventsRef.current.slice(-99), event];
-    window.__ASCII_MAGIC_EVENTS__ = analyticsEventsRef.current;
-    window.dispatchEvent(new CustomEvent("ascii-magic:analytics", { detail: event }));
+    window.__GLYPH_STUDIO_EVENTS__ = analyticsEventsRef.current;
+    window.dispatchEvent(new CustomEvent("glyph-studio:analytics", { detail: event }));
   }, []);
 
   const updateSetting = useCallback((key, value) => {
@@ -1490,7 +1490,7 @@ function App() {
     }
 
     gif.finish();
-    downloadBlob(new Blob([gif.bytes()], { type: "image/gif" }), "ascii-magic.gif");
+    downloadBlob(new Blob([gif.bytes()], { type: "image/gif" }), "glyph-studio.gif");
     setStatus(`Exported GIF animation (${settings.exportDuration}s @ ${settings.exportFps}fps)`);
     setExporting(false);
   }, [draw, settings.exportDuration, settings.exportFps, settings.exportScale]);
@@ -1499,7 +1499,7 @@ function App() {
     if (!canvas.captureStream || typeof MediaRecorder === "undefined") {
       setStatus("MP4 unavailable in this browser; exported PNG fallback");
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-      if (blob) downloadBlob(blob, "ascii-magic.png");
+      if (blob) downloadBlob(blob, "glyph-studio.png");
       return;
     }
 
@@ -1513,7 +1513,7 @@ function App() {
     if (!mimeType) {
       setStatus("Video export unsupported; exported PNG fallback");
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-      if (blob) downloadBlob(blob, "ascii-magic.png");
+      if (blob) downloadBlob(blob, "glyph-studio.png");
       return;
     }
 
@@ -1548,7 +1548,7 @@ function App() {
     await stopped;
     stream.getTracks().forEach((track) => track.stop());
     const extension = mimeType.includes("mp4") ? "mp4" : "webm";
-    downloadBlob(new Blob(chunks, { type: mimeType }), `ascii-magic.${extension}`);
+    downloadBlob(new Blob(chunks, { type: mimeType }), `glyph-studio.${extension}`);
     setStatus(
       extension === "mp4"
         ? `Exported ${format === "mp4-video" ? "MP4 video" : "MP4 animation"}`
@@ -1580,7 +1580,7 @@ function App() {
     const mime = format === "jpg" ? "image/jpeg" : "image/png";
     const link = document.createElement("a");
     link.href = exportCanvasEl.toDataURL(mime, 0.92);
-    link.download = `ascii-magic.${format === "jpg" ? "jpg" : "png"}`;
+    link.download = `glyph-studio.${format === "jpg" ? "jpg" : "png"}`;
     link.click();
     setStatus(`Exported ${format.toUpperCase()} at ${settings.exportScale}x`);
   }, [exportGif, exportRecordedVideo, settings.exportFormat, settings.exportFps, settings.exportScale, trackEvent]);
@@ -1741,9 +1741,6 @@ function App() {
                 <WandSparklesIcon data-icon="inline-start" />
                 Inspire Me
               </Button>
-              <p className="text-xs text-muted-foreground">
-                Wonder where these backgrounds are from? Check out <a className="underline underline-offset-4" href="https://backgrounds.supply">backgrounds.supply</a>
-              </p>
             </CardContent>
           </Card>
 
@@ -1796,7 +1793,7 @@ function App() {
         <aside className="border-t bg-background/92 xl:max-h-screen xl:border-l xl:border-t-0">
           <div className="flex items-center justify-between gap-3 border-b p-4">
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight">ASCII Magic</h1>
+              <h1 className="text-2xl font-semibold tracking-tight">Glyph Studio</h1>
               <p className="text-sm text-muted-foreground">Image-to-ASCII editor</p>
             </div>
             <DropdownMenu>
@@ -2174,22 +2171,10 @@ function App() {
             <>
               <DialogHeader>
                 <DialogTitle>About</DialogTitle>
-                <DialogDescription>ASCII Magic turns images and videos into stylized ASCII art with export-ready controls.</DialogDescription>
+                <DialogDescription>Glyph Studio turns images and videos into stylized ASCII art with export-ready controls.</DialogDescription>
               </DialogHeader>
               <div className="flex flex-col gap-3 text-sm text-muted-foreground">
-                <p>Built as a local recreation of the public ASCII Magic editor surface, including generated substitute media for the demo and background workflows.</p>
-                <p>Project by Kailash.</p>
-                <div className="flex flex-wrap gap-2">
-                  <Button asChild variant="outline" size="sm">
-                    <a href="https://backgrounds.supply">backgrounds.supply</a>
-                  </Button>
-                  <Button asChild variant="outline" size="sm">
-                    <a href="https://www.instagram.com/kail.designs">Instagram</a>
-                  </Button>
-                  <Button asChild variant="outline" size="sm">
-                    <a href="https://x.com/kail_designs">X</a>
-                  </Button>
-                </div>
+                <p>Built as a local image-to-ASCII editor with generated demo media, background workflows, and export-ready controls.</p>
               </div>
             </>
           )}
@@ -2239,7 +2224,7 @@ function App() {
                 <DialogTitle>Suggest a Feature</DialogTitle>
                 <DialogDescription>Share a parity gap or a new idea for the editor.</DialogDescription>
               </DialogHeader>
-              <Textarea placeholder="What should ASCII Magic do next?" />
+              <Textarea placeholder="What should Glyph Studio do next?" />
               <DialogFooter>
                 {feedbackState.feature === "sent" ? (
                   <>

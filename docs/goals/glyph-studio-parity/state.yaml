@@ -4,19 +4,19 @@
 version: 2
 
 goal:
-  title: "Recreate ASCII Magic With Full Feature Parity"
-  slug: "ascii-magic-parity"
+  title: "Recreate Glyph Studio With Full Feature Parity"
+  slug: "glyph-studio-parity"
   kind: specific
-  tranche: "Discover the public ASCII Magic feature inventory and local repo shape, then implement successive safe verified slices until the local app reaches full user-visible feature parity."
+  tranche: "Discover the public Glyph Studio feature inventory and local repo shape, then implement successive safe verified slices until the local app reaches full user-visible feature parity."
   status: done
   intake:
-    original_request: "recreate https://www.ascii-magic.com/, full deature parity"
-    interpreted_outcome: "A local app recreates the public ASCII Magic website and its user-visible workflows with feature parity."
+    original_request: "recreate public reference site, full deature parity"
+    interpreted_outcome: "A local app recreates the public Glyph Studio website and its user-visible workflows with feature parity."
     input_shape: specific
-    audience: "Users who want the ASCII Magic experience recreated locally."
+    audience: "Users who want the Glyph Studio experience recreated locally."
     authority: requested
     proof_type: demo
-    completion_proof: "A final audit demonstrates every public workflow discovered from ascii-magic.com working locally, with tests or browser checks for conversion, controls, exports/copy paths, error states, and responsive UI parity."
+    completion_proof: "A final audit demonstrates every public workflow discovered from public reference site working locally, with tests or browser checks for conversion, controls, exports/copy paths, error states, and responsive UI parity."
     likely_misfire: "Building a visually similar page while missing conversion options, exports, copy/download paths, output quality, edge cases, or interaction details from the public site."
     blind_spots_considered:
       - "The source site must be inspected during /goal, not during goal-prep, to identify the real public feature inventory."
@@ -53,8 +53,8 @@ visual_board:
   selected: local
   local:
     status: live
-    url: "http://goalbuddy.localhost:41737/ascii-magic-parity/"
-    command: "npx goalbuddy board /Users/oussmustaine/Documents/a-art/docs/goals/ascii-magic-parity"
+    url: "http://goalbuddy.localhost:41737/glyph-studio-parity/"
+    command: "npx goalbuddy board /Users/oussmustaine/Documents/a-art/docs/goals/glyph-studio-parity"
   github_projects:
     status: not_requested
     url: null
@@ -69,11 +69,11 @@ tasks:
     assignee: Scout
     status: done
     reasoning_hint: default
-    objective: "Map the public ASCII Magic feature inventory and the local repo shape without implementing."
+    objective: "Map the public Glyph Studio feature inventory and the local repo shape without implementing."
     inputs:
-      - "https://www.ascii-magic.com/"
+      - "public reference site"
       - "Current repository root: /Users/oussmustaine/Documents/a-art"
-      - "docs/goals/ascii-magic-parity/goal.md"
+      - "docs/goals/glyph-studio-parity/goal.md"
     constraints:
       - "Read-only."
       - "Do not edit implementation files."
@@ -82,18 +82,18 @@ tasks:
       - "Map repo architecture, dependency manager, existing app entry points, and verification commands."
       - "Preserve project instruction: always commit in small batches."
     expected_output:
-      - "Public ASCII Magic feature inventory with evidence."
+      - "Public Glyph Studio feature inventory with evidence."
       - "Repo map and likely implementation surface."
       - "Verification commands and any missing dependency/setup notes."
       - "Candidate implementation slices ordered by impact, confidence, reversibility, and verification strength."
     receipt:
       result: done
       note: "notes/T001-scout.md"
-      summary: "Mapped ASCII Magic's public editor feature inventory from the live site and changelog; repo currently has no app code, only GoalBuddy files."
+      summary: "Mapped Glyph Studio's public editor feature inventory from the live site and changelog; repo currently has no app code, only GoalBuddy files."
       evidence:
-        - "https://www.ascii-magic.com/"
-        - "https://www.ascii-magic.com/changelog"
-        - "/Users/oussmustaine/Documents/a-art/docs/goals/ascii-magic-parity/notes/T001-scout.md"
+        - "public reference site"
+        - "public reference changelog"
+        - "/Users/oussmustaine/Documents/a-art/docs/goals/glyph-studio-parity/notes/T001-scout.md"
       spawned_tasks: []
   - id: T002
     type: judge
@@ -103,8 +103,8 @@ tasks:
     objective: "Review Scout evidence and choose the largest safe first implementation slice for full feature parity."
     inputs:
       - "T001 receipt"
-      - "docs/goals/ascii-magic-parity/goal.md"
-      - "docs/goals/ascii-magic-parity/state.yaml"
+      - "docs/goals/glyph-studio-parity/goal.md"
+      - "docs/goals/glyph-studio-parity/state.yaml"
     constraints:
       - "Do not implement."
       - "Do not approve a visual-only slice if conversion behavior or feature parity foundations are clearly required first."
@@ -121,8 +121,8 @@ tasks:
       result: done
       decision: approved
       full_outcome_complete: false
-      rationale: "The repo is empty, so the largest safe first slice is to scaffold a local web app and implement the static-image ASCII Magic editor foundation with real canvas rendering, full visible control surface, PNG/JPG export, responsive chrome, and smoke verification. Video/GIF/MP4, crop/mask/lights depth, and final parity hardening can follow on the same foundation."
-      worker_objective: "Scaffold a Vite web app and implement the core ASCII Magic static-image editor parity slice: upload/paste/demo source paths, canvas ASCII rendering, public control surface for background/characters/intensity/animation/lights/mask/post-FX, PNG/JPG export, theme/menu/about/feedback/changelog surfaces, responsive layout, and automated smoke checks."
+      rationale: "The repo is empty, so the largest safe first slice is to scaffold a local web app and implement the static-image Glyph Studio editor foundation with real canvas rendering, full visible control surface, PNG/JPG export, responsive chrome, and smoke verification. Video/GIF/MP4, crop/mask/lights depth, and final parity hardening can follow on the same foundation."
+      worker_objective: "Scaffold a Vite web app and implement the core Glyph Studio static-image editor parity slice: upload/paste/demo source paths, canvas ASCII rendering, public control surface for background/characters/intensity/animation/lights/mask/post-FX, PNG/JPG export, theme/menu/about/feedback/changelog surfaces, responsive layout, and automated smoke checks."
       allowed_files:
         - "package.json"
         - "package-lock.json"
@@ -156,7 +156,7 @@ tasks:
     assignee: Worker
     status: done
     reasoning_hint: default
-    objective: "Scaffold a Vite web app and implement the core ASCII Magic static-image editor parity slice: upload/paste/demo source paths, canvas ASCII rendering, public control surface for background/characters/intensity/animation/lights/mask/post-FX, PNG/JPG export, theme/menu/about/feedback/changelog surfaces, responsive layout, and automated smoke checks."
+    objective: "Scaffold a Vite web app and implement the core Glyph Studio static-image editor parity slice: upload/paste/demo source paths, canvas ASCII rendering, public control surface for background/characters/intensity/animation/lights/mask/post-FX, PNG/JPG export, theme/menu/about/feedback/changelog surfaces, responsive layout, and automated smoke checks."
     inputs:
       - "T002 receipt"
       - "T001 feature inventory and repo map"
@@ -289,7 +289,7 @@ tasks:
       - "src/**"
       - "tests/**"
       - "vite.config.js"
-      - "docs/goals/ascii-magic-parity/state.yaml"
+      - "docs/goals/glyph-studio-parity/state.yaml"
     verify:
       - "npm install"
       - "npm run test"
@@ -310,7 +310,7 @@ tasks:
         - "src/App.jsx"
         - "tests/app.test.jsx"
         - "tests/setup.js"
-        - "docs/goals/ascii-magic-parity/state.yaml"
+        - "docs/goals/glyph-studio-parity/state.yaml"
       commands:
         - cmd: "npm install gifenc"
           status: pass
@@ -326,7 +326,7 @@ tasks:
         - "Opened Motion, added Light 1, enabled mask, and verified Draw Mask appears."
         - "Opened Finish > Crop / Rotate and verified the dialog, crop controls, and Save action are present."
         - "Read browser metrics: canvas present, no horizontal overflow at the active desktop viewport, no console errors."
-        - "Captured QA screenshot at /tmp/ascii-magic-parity-t005.png."
+        - "Captured QA screenshot at /tmp/glyph-studio-parity-t005.png."
       summary: "Implemented gallery presets, background presets, crop state wired into rendering, direct canvas mask drawing, light placement/editing, video source playback/seek/speed controls, GIF encoding through gifenc, and MP4/WebM browser-recording fallback behavior."
       remaining_parity_gaps:
         - "Several post-processing effects are still shallow or toggle-only: CRT, chromatic, RGB split, glitch, blur, pixelate, halftone, and stronger bloom/composite behavior need render passes."
@@ -355,7 +355,7 @@ tasks:
     allowed_files:
       - "src/**"
       - "tests/**"
-      - "docs/goals/ascii-magic-parity/state.yaml"
+      - "docs/goals/glyph-studio-parity/state.yaml"
     verify:
       - "npm run test"
       - "npm run build"
@@ -372,7 +372,7 @@ tasks:
         - "src/App.jsx"
         - "src/ascii.js"
         - "tests/ascii.test.js"
-        - "docs/goals/ascii-magic-parity/state.yaml"
+        - "docs/goals/glyph-studio-parity/state.yaml"
       commands:
         - cmd: "npm run test -- tests/ascii.test.js"
           status: pass
@@ -386,7 +386,7 @@ tasks:
         - "Reloaded http://127.0.0.1:5174/ in the in-app browser."
         - "Enabled CRT Curvature, RGB Split, Pixelate, and Halftone in Finish."
         - "Verified canvas dimensions are populated, toggles are checked, no horizontal overflow, and no console errors."
-        - "Captured effects QA screenshot at /tmp/ascii-magic-parity-t006-effects.png."
+        - "Captured effects QA screenshot at /tmp/glyph-studio-parity-t006-effects.png."
       summary: "Added tested animation transform primitives for wave/cascade/reveal/pulse styles and mapped all public post-processing toggles to actual render passes. Wired CRT, chromatic/RGB split, bloom, glitch, blur, pixelate, halftone, char chromatic, and related passes into the canvas renderer."
       remaining_parity_gaps:
         - "Public inventory still calls for 31 image demos and 3 video demos; local gallery is smaller."
@@ -416,7 +416,7 @@ tasks:
     allowed_files:
       - "src/**"
       - "tests/**"
-      - "docs/goals/ascii-magic-parity/state.yaml"
+      - "docs/goals/glyph-studio-parity/state.yaml"
     verify:
       - "npm run test"
       - "npm run build"
@@ -433,7 +433,7 @@ tasks:
         - "src/App.jsx"
         - "src/ascii.js"
         - "tests/app.test.jsx"
-        - "docs/goals/ascii-magic-parity/state.yaml"
+        - "docs/goals/glyph-studio-parity/state.yaml"
       commands:
         - cmd: "npm run test -- tests/app.test.jsx"
           status: pass
@@ -457,7 +457,7 @@ tasks:
     assignee: Judge
     status: done
     reasoning_hint: high
-    objective: "Audit whether the local recreation satisfies full public ASCII Magic feature parity."
+    objective: "Audit whether the local recreation satisfies full public Glyph Studio feature parity."
     inputs:
       - "All done task receipts"
       - "T001 public feature inventory"
@@ -506,7 +506,7 @@ tasks:
     objective: "Close the user-rejected parity gaps: 34-background gallery surface, real video-demo source behavior, direct light-drag UX, standalone /changelog route, and feedback sent/retry states with richer technical details."
     inputs:
       - "User feedback: full feature parity"
-      - "Live site evidence from https://www.ascii-magic.com/ and https://www.ascii-magic.com/changelog"
+      - "Live site evidence from public reference site and public reference changelog"
       - "T001 public feature inventory"
       - "Current app implementation"
     constraints:
@@ -521,7 +521,7 @@ tasks:
     allowed_files:
       - "src/**"
       - "tests/**"
-      - "docs/goals/ascii-magic-parity/state.yaml"
+      - "docs/goals/glyph-studio-parity/state.yaml"
     verify:
       - "npm run test"
       - "npm run build"
@@ -537,12 +537,12 @@ tasks:
         - "src/App.jsx"
         - "src/ascii.js"
         - "tests/app.test.jsx"
-        - "docs/goals/ascii-magic-parity/state.yaml"
+        - "docs/goals/glyph-studio-parity/state.yaml"
       implemented:
         - "Expanded the background gallery to 34 generated curated-background slots with the exact visible count and Background 34 control."
         - "Loaded video demos as video-demo sources so the public workflow reports Video source while preserving local generated media."
         - "Added direct light-pad drag behavior, 0/4 count, the public instruction copy, and the lighting font-size performance note."
-        - "Added a standalone /changelog route with Back to ASCII Magic navigation."
+        - "Added a standalone /changelog route with Back to Glyph Studio navigation."
         - "Added feedback sent/retry states and richer auto-captured technical details: source, file metadata, source resolution, screen, viewport, connection, render settings, effects, lights, mask, analytics event count, and UA."
         - "Added live-source polish for Disco pattern randomize, About project credit/social links, and local analytics-style event capture."
       verification:
@@ -563,8 +563,8 @@ tasks:
         - cmd: "Browser smoke check at http://127.0.0.1:5174/"
           status: pass
       source_evidence:
-        - "https://www.ascii-magic.com/"
-        - "https://www.ascii-magic.com/changelog"
+        - "public reference site"
+        - "public reference changelog"
       summary: "Closed the hard gaps from the user's rejection and refreshed against the live public site before final audit."
       next_task: T009
   - id: T009
@@ -572,7 +572,7 @@ tasks:
     assignee: Judge
     status: done
     reasoning_hint: default
-    objective: "Final re-audit after T008 against the live public ASCII Magic feature inventory and the user's full feature parity request."
+    objective: "Final re-audit after T008 against the live public Glyph Studio feature inventory and the user's full feature parity request."
     inputs:
       - "T001 public feature inventory"
       - "T008 implementation receipt"
@@ -614,7 +614,7 @@ tasks:
     reasoning_hint: default
     objective: "Reopen and harden the completed parity claim against the latest live site refresh and local browser checks."
     inputs:
-      - "User request on 2026-05-19: exact feature parity with https://www.ascii-magic.com/ and no functional bugs."
+      - "User request on 2026-05-19: exact feature parity with public reference site and no functional bugs."
       - "Live site refresh on 2026-05-19."
       - "Current local app implementation."
     constraints:
@@ -632,7 +632,7 @@ tasks:
         - "src/App.jsx"
         - "src/ascii.js"
         - "tests/ascii.test.js"
-        - "docs/goals/ascii-magic-parity/state.yaml"
+        - "docs/goals/glyph-studio-parity/state.yaml"
       implemented:
         - "Made Edge Emphasis affect cell mapping and kept Brightness/Contrast as color controls."
         - "Added style-specific cell sizing for mosaic/cube/disco and distinct rendering for block, mixed, cube, and disco styles."
@@ -644,7 +644,7 @@ tasks:
         - "npm run build: pass"
         - "git diff --check: pass"
         - "Chrome headless browser smoke at http://127.0.0.1:5175/: pass; nonblank canvas, moving video-demo checksums, Video source badge, light/mask controls, Glitch Amount, crop 8 handles, Undo/Redo, zero desktop/mobile horizontal overflow, and no runtime exceptions."
-        - "PNG export smoke: pass; intercepted ascii-magic.png data URL download and Exported PNG at 2x status."
+        - "PNG export smoke: pass; intercepted glyph-studio.png data URL download and Exported PNG at 2x status."
       coverage_map:
         source_upload_paste_demo: "Still covered; generated video demos now move frame-to-frame and expose Video source during the source workflow."
         exports: "Strengthened; PNG export verified in-browser, GIF uses duration*FPS frames, and animated video export records a scaled export canvas."

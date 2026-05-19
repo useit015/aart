@@ -1,20 +1,20 @@
-# Recreate ASCII Magic With Full Feature Parity
+# Recreate Glyph Studio With Full Feature Parity
 
 ## Objective
 
-Recreate the public `https://www.ascii-magic.com/` experience locally with full user-visible feature parity, including the workflows, controls, conversion behavior, export/copy paths, responsive UI, and relevant error/empty states discovered from the live site during `/goal`.
+Recreate the public `public reference site` experience locally with full user-visible feature parity, including the workflows, controls, conversion behavior, export/copy paths, responsive UI, and relevant error/empty states discovered from the live site during `/goal`.
 
 ## Original Request
 
-`recreate https://www.ascii-magic.com/, full deature parity`
+`recreate public reference site, full deature parity`
 
 ## Intake Summary
 
 - Input shape: `specific`
-- Audience: users who want the ASCII Magic experience recreated locally
+- Audience: users who want the Glyph Studio experience recreated locally
 - Authority: `requested`
 - Proof type: `demo`
-- Completion proof: a final audit demonstrates every public workflow discovered from ascii-magic.com working locally, with tests or browser checks for conversion, controls, exports/copy paths, and responsive UI parity.
+- Completion proof: a final audit demonstrates every public workflow discovered from public reference site working locally, with tests or browser checks for conversion, controls, exports/copy paths, and responsive UI parity.
 - Likely misfire: building a visually similar page while missing conversion options, exports, output quality, edge cases, or interaction details from the public site.
 - Blind spots considered: the source site must be inspected during `/goal`, not goal-prep; public feature parity may require UI behavior, image/text processing, output formats, responsiveness, accessibility, and error states; the current repo architecture and verification commands are unknown until Scout maps them.
 - Existing plan facts: user selected a local live GoalBuddy board. Project instruction: always commit in small batches.
@@ -25,13 +25,13 @@ Recreate the public `https://www.ascii-magic.com/` experience locally with full 
 
 ## Current Tranche
 
-Discover the public feature inventory and local repo shape, choose the largest safe implementation slice, implement successive verified vertical slices, and keep advancing until the full public ASCII Magic user experience is recreated locally.
+Discover the public feature inventory and local repo shape, choose the largest safe implementation slice, implement successive verified vertical slices, and keep advancing until the full public Glyph Studio user experience is recreated locally.
 
 This is not a one-slice goal. After each verified Worker package, the PM should continue to the next safe local work package unless a phase, risk, ambiguity, rejected-verification, or final-completion review is due.
 
 ## Non-Negotiable Constraints
 
-- During `/goal`, inspect the public ASCII Magic site and record the observed feature inventory before implementing.
+- During `/goal`, inspect the public Glyph Studio site and record the observed feature inventory before implementing.
 - Do not treat a lookalike static page as complete if conversion behavior, controls, exports, copy/download paths, responsive layout, or error states are missing.
 - Respect the repo's existing architecture, dependency choices, design system, and verification commands once Scout identifies them.
 - Follow the project instruction: always commit in small batches when commits are made.
@@ -68,14 +68,14 @@ Do not stop because a slice needs owner input, credentials, production access, d
 
 Machine truth lives at:
 
-`docs/goals/ascii-magic-parity/state.yaml`
+`docs/goals/glyph-studio-parity/state.yaml`
 
 If this charter and `state.yaml` disagree, `state.yaml` wins for task status, active task, receipts, verification freshness, and completion truth.
 
 ## Run Command
 
 ```text
-/goal Follow docs/goals/ascii-magic-parity/goal.md.
+/goal Follow docs/goals/glyph-studio-parity/goal.md.
 ```
 
 ## PM Loop

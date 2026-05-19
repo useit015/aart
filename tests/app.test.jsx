@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../src/App.jsx";
 
-describe("ASCII Magic app shell", () => {
+describe("Glyph Studio app shell", () => {
   afterEach(() => {
     window.history.pushState({}, "", "/");
   });
@@ -13,7 +13,7 @@ describe("ASCII Magic app shell", () => {
   it("renders the primary editor controls and can generate a demo", async () => {
     render(<App />);
 
-    expect(screen.getByRole("heading", { name: "ASCII Magic" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Glyph Studio" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Upload Image / Video" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Export" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Source" })).toBeInTheDocument();
@@ -143,7 +143,7 @@ describe("ASCII Magic app shell", () => {
     render(<App />);
 
     expect(screen.getByRole("heading", { name: "Changelog" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Back to ASCII Magic" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back to Glyph Studio" })).toBeInTheDocument();
   });
 
   it("shows feedback sent and retry states with captured technical details", async () => {

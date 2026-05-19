@@ -1,11 +1,11 @@
 # T001 Scout Receipt
 
-## Public ASCII Magic Feature Inventory
+## Public Glyph Studio Feature Inventory
 
 Evidence sources:
 
-- `https://www.ascii-magic.com/` page text and live DOM snapshot.
-- `https://www.ascii-magic.com/changelog` public changelog.
+- `public reference site` page text and live DOM snapshot.
+- `public reference changelog` public changelog.
 - Live browser inspection of controls, selects, inputs, media/canvas elements, and default values.
 
 Core workflows:
@@ -14,7 +14,7 @@ Core workflows:
 - Upload button supports image/video input.
 - Paste from clipboard is advertised as a first-class source path.
 - Inspire Me loads a random tuned demo.
-- Demo/gallery assets include 31 curated images and 3 videos per changelog, plus background gallery attribution to backgrounds.supply.
+- Demo/gallery assets include 31 curated images and 3 videos per changelog, plus background gallery attribution to background source.
 - Canvas-based live preview; live DOM had 4 canvases and hidden video/img elements after demo preload.
 
 Export/source controls:
@@ -93,7 +93,7 @@ Chrome, feedback, and auxiliary pages:
 - Suggest a Feature form is present from menu/footer.
 - About modal with product description, project credit, social links, animated hero per changelog.
 - Changelog page at `/changelog`.
-- External links: backgrounds.supply, Instagram, X.
+- External links: background source, Instagram, X.
 
 Responsive/accessibility:
 
@@ -105,7 +105,7 @@ Responsive/accessibility:
 - Repository root: `/Users/oussmustaine/Documents/a-art`.
 - Current branch: `master`.
 - Current tracked app code: none found.
-- Current files are only GoalBuddy control files under `docs/goals/ascii-magic-parity/`.
+- Current files are only GoalBuddy control files under `docs/goals/glyph-studio-parity/`.
 - `rg --files` returned only `goal.md` and `state.yaml`.
 - No `package.json`, README, source directory, or tests exist yet.
 - `git status --short` showed `?? docs/`.
