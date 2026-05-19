@@ -170,18 +170,22 @@ describe("Glyph Studio app shell", () => {
     expect(screen.queryByRole("button", { name: "Random Demo" })).not.toBeInTheDocument();
   });
 
-  it("adds interactive preview motion without replacing light and mask workflows", async () => {
+  it("adds organic preview motion without replacing light and mask workflows", async () => {
     render(<App />);
 
     await userEvent.click(screen.getByRole("tab", { name: "Motion" }));
 
     expect(screen.getByText("Interactive Motion")).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Enable Interaction" })).not.toBeChecked();
-    expect(screen.getByLabelText("Pointer")).toBeInTheDocument();
+    expect(screen.getByLabelText("Behavior")).toBeInTheDocument();
     expect(screen.getByLabelText("Idle")).toBeInTheDocument();
-    expect(screen.getByText("Force")).toBeInTheDocument();
-    expect(screen.getByText("Radius")).toBeInTheDocument();
-    expect(screen.getByText("Motion Amount")).toBeInTheDocument();
+    expect(screen.getByText("Strength")).toBeInTheDocument();
+    expect(screen.getByText("Range")).toBeInTheDocument();
+    expect(screen.getByText("Turbulence")).toBeInTheDocument();
+    expect(screen.getByText("Damping")).toBeInTheDocument();
+    expect(screen.getByText("Trail")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Pointer")).not.toBeInTheDocument();
+    expect(screen.queryByText("Motion Amount")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Burst" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reset Motion" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Place Lights" })).toBeInTheDocument();

@@ -31,15 +31,18 @@ import {
   buildAsciiCells,
   clamp,
   computeAnimationTransform,
-  computeInteractiveMotionTransform,
   correctedRows,
   createDefaultSettings,
   decodeAsciiGrid,
-  isInteractiveMotionActive,
   resolveBackgroundBlurFrame,
   resolvePostProcessingPlan,
   sampleAsciiGrid
 } from "./ascii.js";
+import {
+  isMotionFieldActive,
+  stepMotionField,
+  syncMotionField
+} from "./motionField.js";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -637,18 +640,49 @@ function pickRandomGlyph(cell, settings) {
   return chars[index] || cell.glyph;
 }
 
-function drawStyledCell(ctx, cell, settings, tick, width, height, pointer = {}, burst = {}) {
+function ensureOffscreenCanvas(ref, width, height) {
+  const canvas = ref.current || document.createElement("canvas");
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext("2d")?.clearRect(0, 0, width, height);
+  }
+  ref.current = canvas;
+  return canvas;
+}
+
+function clearOffscreenCanvas(ref) {
+  const canvas = ref.current;
+  if (!canvas) return;
+  canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function createMotionRenderCell(particle) {
+  const cell = particle.cell;
+  const width = Number(cell.w || 0);
+  const height = Number(cell.h || 0);
+  return {
+    ...cell,
+    x: particle.x - width / 2,
+    y: particle.y - height / 2,
+    motionScale: particle.scale,
+    motionAlpha: particle.alpha
+  };
+}
+
+function drawStyledCell(ctx, cell, settings, tick, width, height) {
   const centerX = cell.x + cell.w / 2;
   const centerY = cell.y + cell.h / 2;
   const animationTransform = computeAnimationTransform(cell, settings, tick, width, height);
-  const motionTransform = computeInteractiveMotionTransform(cell, settings, pointer, tick, width, height, burst);
+  const motionScale = Number(cell.motionScale ?? 1);
+  const motionAlpha = Number(cell.motionAlpha ?? 1);
   const transform = {
-    x: animationTransform.x + motionTransform.x,
-    y: animationTransform.y + motionTransform.y,
-    scale: animationTransform.scale * motionTransform.scale,
-    alpha: animationTransform.alpha * motionTransform.alpha
+    x: animationTransform.x,
+    y: animationTransform.y,
+    scale: animationTransform.scale * motionScale,
+    alpha: animationTransform.alpha * motionAlpha
   };
-  const hasTransform = settings.animated || settings.interactiveMotion;
+  const hasTransform = settings.animated || Math.abs(motionScale - 1) > 0.0001;
   ctx.save();
   ctx.globalAlpha = (settings.charOpacity / 100) * transform.alpha;
   ctx.globalCompositeOperation = settings.blendMode;
@@ -842,8 +876,12 @@ function App() {
   const stillGridCacheRef = useRef({ key: "", grid: null });
   const sourceCanvasRef = useRef(null);
   const frameRef = useRef(0);
-  const pointerMotionRef = useRef({ active: false, x: 0, y: 0 });
-  const burstRef = useRef({ active: false, startedAt: 0 });
+  const pointerMotionRef = useRef({ active: false, pressed: false, x: 0, y: 0 });
+  const burstRef = useRef({ active: false, elapsed: 0, startedAt: 0 });
+  const motionFieldRef = useRef(null);
+  const motionSignatureRef = useRef("");
+  const motionTickRef = useRef(0);
+  const trailCanvasRef = useRef(null);
   const drawingStrokeRef = useRef(null);
   const cropDragRef = useRef(null);
   const lightDragRef = useRef(null);
@@ -918,6 +956,10 @@ function App() {
     setSourceKind(kind);
     setSourceStats(null);
     stillGridCacheRef.current = { key: "", grid: null };
+    motionFieldRef.current = null;
+    motionSignatureRef.current = "";
+    motionTickRef.current = 0;
+    clearOffscreenCanvas(trailCanvasRef);
     setFileMeta(meta || {
       name,
       type: kind === "video" ? "video/*" : "generated/image",
@@ -1148,13 +1190,14 @@ function App() {
     setStatus("Crop adjusted");
   }, []);
 
-  const updateCanvasPointerMotion = useCallback((event) => {
+  const updateCanvasPointerMotion = useCallback((event, pressed = pointerMotionRef.current.pressed) => {
     if (!settings.interactiveMotion || canvasTool !== "none") return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const point = getCanvasPoint(event, canvas);
     pointerMotionRef.current = {
       active: true,
+      pressed,
       x: point.x * canvas.width,
       y: point.y * canvas.height
     };
@@ -1163,7 +1206,7 @@ function App() {
 
   const clearCanvasPointerMotion = useCallback(() => {
     if (!pointerMotionRef.current.active) return;
-    pointerMotionRef.current = { ...pointerMotionRef.current, active: false };
+    pointerMotionRef.current = { ...pointerMotionRef.current, active: false, pressed: false };
     requestMotionFrame();
   }, [requestMotionFrame]);
 
@@ -1171,7 +1214,10 @@ function App() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     if (canvasTool === "none") {
-      updateCanvasPointerMotion(event);
+      if (settings.interactiveMotion) {
+        updateCanvasPointerMotion(event, true);
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+      }
       return;
     }
     event.preventDefault();
@@ -1200,7 +1246,7 @@ function App() {
         addLight(point);
       }
     }
-  }, [addLight, canvasTool, lights, settings.brushSize, settings.lights, settings.mask, settings.maskTool, updateCanvasPointerMotion]);
+  }, [addLight, canvasTool, lights, settings.brushSize, settings.interactiveMotion, settings.lights, settings.mask, settings.maskTool, updateCanvasPointerMotion]);
 
   const handleCanvasPointerMove = useCallback((event) => {
     if (canvasTool === "none") {
@@ -1221,8 +1267,14 @@ function App() {
       drawingStrokeRef.current = null;
       event.currentTarget?.releasePointerCapture?.(event.pointerId);
       setStatus("Mask updated");
+      return;
     }
-  }, []);
+    if (pointerMotionRef.current.pressed) {
+      pointerMotionRef.current = { ...pointerMotionRef.current, pressed: false };
+      event.currentTarget?.releasePointerCapture?.(event.pointerId);
+      requestMotionFrame();
+    }
+  }, [requestMotionFrame]);
 
   const handleCanvasPointerLeave = useCallback((event) => {
     finishCanvasPointer(event);
@@ -1231,7 +1283,7 @@ function App() {
 
   const triggerInteractiveBurst = useCallback(() => {
     const startedAt = performance.now();
-    burstRef.current = { active: true, startedAt };
+    burstRef.current = { active: true, elapsed: 0, startedAt };
     setSettings((current) => ({ ...current, interactiveMotion: true }));
     trackEvent("interactive_motion_burst");
     setStatus("Interactive burst");
@@ -1239,8 +1291,12 @@ function App() {
   }, [trackEvent]);
 
   const resetInteractiveMotion = useCallback(() => {
-    pointerMotionRef.current = { active: false, x: 0, y: 0 };
-    burstRef.current = { active: false, startedAt: 0 };
+    pointerMotionRef.current = { active: false, pressed: false, x: 0, y: 0 };
+    burstRef.current = { active: false, elapsed: 0, startedAt: 0 };
+    motionFieldRef.current = null;
+    motionSignatureRef.current = "";
+    motionTickRef.current = 0;
+    clearOffscreenCanvas(trailCanvasRef);
     setSettings((current) => ({
       ...current,
       interactiveMotion: false,
@@ -1248,7 +1304,11 @@ function App() {
       idleMotion: "still",
       motionForce: 55,
       motionRadius: 26,
-      motionAmount: 45
+      motionAmount: 45,
+      motionSpring: 70,
+      motionDamping: 88,
+      motionTurbulence: 0,
+      motionTrail: 0
     }));
     trackEvent("interactive_motion_reset");
     setStatus("Interactive motion reset");
@@ -1342,11 +1402,81 @@ function App() {
       ctx.restore();
     }
 
+    const renderAsciiCells = (cells, signature) => {
+      let renderCells = cells;
+      const reducedMotion = motionSettings.reducedMotion || motionSettings.prefersReducedMotion;
+
+      if (motionSettings.interactiveMotion) {
+        const signatureChanged = motionSignatureRef.current !== signature;
+        if (signatureChanged) {
+          motionFieldRef.current = null;
+          motionSignatureRef.current = signature;
+          motionTickRef.current = tick;
+          clearOffscreenCanvas(trailCanvasRef);
+        }
+
+        const previousTick = motionTickRef.current || tick;
+        const dt = signatureChanged ? 16 : clamp(tick - previousTick || 16, 1, 80);
+        motionTickRef.current = tick;
+        motionFieldRef.current = syncMotionField(cells, motionFieldRef.current, width, height);
+        stepMotionField(
+          motionFieldRef.current,
+          motionSettings,
+          pointerMotionRef.current,
+          burstRef.current,
+          dt,
+          width,
+          height
+        );
+        renderCells = motionFieldRef.current.particles.map(createMotionRenderCell);
+      } else {
+        motionFieldRef.current = null;
+        motionSignatureRef.current = signature;
+        motionTickRef.current = tick;
+      }
+
+      const trailAmount = motionSettings.interactiveMotion && !reducedMotion
+        ? clamp(Number(motionSettings.motionTrail || 0), 0, 100)
+        : 0;
+
+      if (trailAmount > 0) {
+        const trailCanvas = ensureOffscreenCanvas(trailCanvasRef, width, height);
+        const trailCtx = trailCanvas.getContext("2d");
+        if (!trailCtx) return;
+        trailCtx.save();
+        trailCtx.globalCompositeOperation = "destination-in";
+        trailCtx.fillStyle = `rgba(0,0,0,${0.5 + (trailAmount / 100) * 0.46})`;
+        trailCtx.fillRect(0, 0, width, height);
+        trailCtx.restore();
+        const trailDrawSettings = { ...motionSettings, blendMode: "source-over" };
+        renderCells.forEach((cell) => drawStyledCell(trailCtx, cell, trailDrawSettings, tick, width, height));
+        ctx.save();
+        ctx.globalCompositeOperation = motionSettings.blendMode;
+        ctx.drawImage(trailCanvas, 0, 0, width, height);
+        ctx.restore();
+        return;
+      }
+
+      clearOffscreenCanvas(trailCanvasRef);
+      renderCells.forEach((cell) => drawStyledCell(ctx, cell, motionSettings, tick, width, height));
+    };
+
     if (useVideo) {
       const data = sourceCtx.getImageData(0, 0, width, height);
-      buildAsciiCells(data, width, height, settings).forEach((cell) => (
-        drawStyledCell(ctx, cell, motionSettings, tick, width, height, pointerMotionRef.current, burstRef.current)
-      ));
+      const cells = buildAsciiCells(data, width, height, settings);
+      renderAsciiCells(cells, JSON.stringify({
+        kind: "video",
+        sourceUrl,
+        naturalWidth,
+        naturalHeight,
+        crop,
+        width,
+        height,
+        style: settings.style,
+        gridColumns: settings.gridColumns,
+        fontSize: settings.fontSize,
+        characters: settings.characters
+      }));
     } else {
       const requestedCols = Number(settings.gridColumns || GRID_QUALITY_PRESETS.balanced.columns);
       const cols = Math.max(1, Math.round(Number.isFinite(requestedCols) ? requestedCols : GRID_QUALITY_PRESETS.balanced.columns));
@@ -1373,15 +1503,34 @@ function App() {
         };
       }
 
-      decodeAsciiGrid(stillGridCacheRef.current.grid, settings).forEach((cell) => {
-        drawStyledCell(ctx, {
-          ...cell,
-          x: cell.x * width,
-          y: cell.y * height,
-          w: cell.w * width,
-          h: cell.h * height
-        }, motionSettings, tick, width, height, pointerMotionRef.current, burstRef.current);
-      });
+      const cells = decodeAsciiGrid(stillGridCacheRef.current.grid, settings).map((cell) => ({
+        ...cell,
+        x: cell.x * width,
+        y: cell.y * height,
+        w: cell.w * width,
+        h: cell.h * height
+      }));
+      renderAsciiCells(cells, JSON.stringify({
+        kind: "image",
+        sourceUrl,
+        naturalWidth,
+        naturalHeight,
+        crop,
+        cols,
+        rows,
+        style: settings.style,
+        gridColumns: settings.gridColumns,
+        fontSize: settings.fontSize,
+        characterSet: settings.characterSet,
+        characters: settings.characters,
+        invert: settings.invert,
+        coverage: settings.coverage,
+        edgeEmphasis: settings.edgeEmphasis,
+        density: settings.density,
+        brightness: settings.brightness,
+        contrast: settings.contrast,
+        gamma: settings.gamma
+      }));
     }
 
     if (settings.dotGrid) {
@@ -1482,16 +1631,20 @@ function App() {
       settings.effects.glitch ||
       settings.style === "disco" ||
       isPlaying ||
-      isInteractiveMotionActive(
+      isMotionFieldActive(
         settings.interactiveMotion ? { ...settings, reducedMotion: prefersReducedMotion() } : settings,
         pointerMotionRef.current,
         burstRef.current,
-        time
+        motionFieldRef.current
       )
     );
     if (needsFrame()) {
       const animate = (time) => {
         draw(time);
+        if (burstRef.current.active && !motionFieldRef.current?.particles?.length) {
+          const elapsed = time - Number(burstRef.current.startedAt || time);
+          burstRef.current = { ...burstRef.current, active: elapsed < 1200, elapsed };
+        }
         if (needsFrame(time)) {
           frameRef.current = requestAnimationFrame(animate);
         } else {
@@ -1509,9 +1662,18 @@ function App() {
 
   useEffect(() => {
     if (canvasTool === "none" || !pointerMotionRef.current.active) return;
-    pointerMotionRef.current = { ...pointerMotionRef.current, active: false };
+    pointerMotionRef.current = { ...pointerMotionRef.current, active: false, pressed: false };
     setMotionRevision((current) => current + 1);
   }, [canvasTool]);
+
+  useEffect(() => {
+    if (settings.interactiveMotion) return;
+    pointerMotionRef.current = { active: false, pressed: false, x: 0, y: 0 };
+    burstRef.current = { active: false, elapsed: 0, startedAt: 0 };
+    motionFieldRef.current = null;
+    motionTickRef.current = 0;
+    clearOffscreenCanvas(trailCanvasRef);
+  }, [settings.interactiveMotion]);
 
   const exportGif = useCallback(async (canvas) => {
     setExporting(true);
@@ -2043,15 +2205,17 @@ function App() {
                 </TabsContent>
 
                 <TabsContent value="motion" className="flex flex-col gap-4">
-                  <ControlCard title="Interactive Motion" description="Make the preview respond to the pointer while editing.">
+                  <ControlCard title="Interactive Motion" description="Persistent particles with spring-back, turbulence, pointer force, and trails.">
                     <ToggleControl label="Enable Interaction" checked={settings.interactiveMotion} onChange={(value) => updateSetting("interactiveMotion", value)} />
                     <div className="grid grid-cols-2 gap-3">
-                      <SelectControl label="Pointer" value={settings.pointerMode} onChange={(value) => updateSetting("pointerMode", value)} options={POINTER_MOTION_OPTIONS} />
+                      <SelectControl label="Behavior" value={settings.pointerMode} onChange={(value) => updateSetting("pointerMode", value)} options={POINTER_MOTION_OPTIONS} />
                       <SelectControl label="Idle" value={settings.idleMotion} onChange={(value) => updateSetting("idleMotion", value)} options={IDLE_MOTION_OPTIONS} />
                     </div>
-                    <RangeControl label="Force" min={0} max={100} value={settings.motionForce} suffix="%" onChange={(value) => updateSetting("motionForce", value)} />
-                    <RangeControl label="Radius" min={5} max={60} value={settings.motionRadius} suffix="%" onChange={(value) => updateSetting("motionRadius", value)} />
-                    <RangeControl label="Motion Amount" min={0} max={100} value={settings.motionAmount} suffix="%" onChange={(value) => updateSetting("motionAmount", value)} />
+                    <RangeControl label="Strength" min={0} max={100} value={settings.motionForce} suffix="%" onChange={(value) => updateSetting("motionForce", value)} />
+                    <RangeControl label="Range" min={5} max={60} value={settings.motionRadius} suffix="%" onChange={(value) => updateSetting("motionRadius", value)} />
+                    <RangeControl label="Turbulence" min={0} max={100} value={settings.motionTurbulence} suffix="%" onChange={(value) => updateSetting("motionTurbulence", value)} />
+                    <RangeControl label="Damping" min={50} max={98} value={settings.motionDamping} suffix="%" onChange={(value) => updateSetting("motionDamping", value)} />
+                    <RangeControl label="Trail" min={0} max={100} value={settings.motionTrail} suffix="%" onChange={(value) => updateSetting("motionTrail", value)} />
                     <div className="grid grid-cols-2 gap-2">
                       <Button variant="outline" onClick={triggerInteractiveBurst}>
                         <SparklesIcon data-icon="inline-start" />
