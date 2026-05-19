@@ -46,13 +46,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from "@/components/ui/card";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -2476,12 +2469,10 @@ function App() {
                 <DialogDescription>Describe what happened and how to reproduce it.</DialogDescription>
               </DialogHeader>
               <Textarea placeholder="Tell us what went wrong..." />
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Technical details (auto-captured)</CardTitle>
-                  <CardDescription className="break-all">{technicalDetails}</CardDescription>
-                </CardHeader>
-              </Card>
+              <section className="mission-panel p-3">
+                <h3 className="text-sm font-semibold">Technical details (auto-captured)</h3>
+                <p className="mt-1 break-all text-sm leading-5 text-muted-foreground">{technicalDetails}</p>
+              </section>
               <DialogFooter>
                 {feedbackState.bug === "sent" ? (
                   <>
@@ -2551,7 +2542,7 @@ function App() {
               </DialogHeader>
               <div
                 data-crop-surface
-                className="relative aspect-video overflow-hidden rounded-lg border bg-[linear-gradient(90deg,transparent_32.8%,hsl(var(--border))_33%,transparent_33.2%,transparent_66.1%,hsl(var(--border))_66.3%,transparent_66.5%),linear-gradient(0deg,transparent_32.8%,hsl(var(--border))_33%,transparent_33.2%,transparent_66.1%,hsl(var(--border))_66.3%,transparent_66.5%)]"
+                className="relative aspect-video overflow-hidden rounded-md border bg-[linear-gradient(90deg,transparent_32.8%,var(--border)_33%,transparent_33.2%,transparent_66.1%,var(--border)_66.3%,transparent_66.5%),linear-gradient(0deg,transparent_32.8%,var(--border)_33%,transparent_33.2%,transparent_66.1%,var(--border)_66.3%,transparent_66.5%)]"
               >
                 <div
                   className="absolute cursor-move border-2 border-primary bg-primary/10 shadow-[0_0_0_999px_rgba(0,0,0,.38)]"
