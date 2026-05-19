@@ -1965,7 +1965,7 @@ function App() {
   return (
     <div className="mission-shell">
       <input ref={fileRef} hidden type="file" accept={UPLOAD_ACCEPT} onChange={(event) => handleFile(event.target.files[0])} />
-      <div className="relative z-10 grid min-h-screen gap-4 p-3 lg:p-5 2xl:grid-cols-[minmax(0,1fr)_440px]">
+      <div className="relative z-10 grid min-h-screen gap-4 p-3 lg:p-5 xl:grid-cols-[minmax(0,1fr)_440px]">
         <main className="grid min-w-0 gap-4">
           <header className="rail-surface flex flex-wrap items-center justify-between gap-3 p-3 lg:p-4">
             <div className="grid gap-1">
@@ -2100,7 +2100,7 @@ function App() {
           </section>
         </main>
 
-        <aside className="rail-surface flex min-h-0 flex-col overflow-hidden 2xl:max-h-[calc(100vh-2.5rem)]">
+        <aside className="rail-surface flex min-h-0 flex-col overflow-hidden xl:max-h-[calc(100vh-2.5rem)]">
           <div className="grid gap-3 border-b border-border p-3 lg:p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="grid gap-1">
@@ -2112,7 +2112,7 @@ function App() {
             <p className="text-sm leading-5 text-muted-foreground">Source, signal, motion, and finish stay in one pass.</p>
           </div>
 
-          <ScrollArea className="2xl:h-[calc(100vh-9.5rem)]">
+          <ScrollArea className="xl:h-[calc(100vh-9.5rem)]">
             <div className="p-3 lg:p-4">
               <Tabs defaultValue="source" className="gap-4">
                 <TabsList className="grid h-auto w-full grid-cols-4 gap-1 bg-secondary/70 p-1">
