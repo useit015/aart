@@ -2,7 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement the Sigil-inspired still-image quality engine with sampled grids, corrected aspect rows, improved tone/palette/charset controls, cached redraws, tests, verification, and small-batch commits.
+> **Follow-up UX note:** Palette Mode was removed after implementation because it added a confusing parallel control. The current product surface uses **Detail** for sampled grid density and **Glyph Set** for character ramps. Historical palette-related steps below are obsolete and must not be reintroduced from this plan.
+
+**Goal:** Implement the Sigil-inspired still-image quality engine with sampled grids, corrected aspect rows, improved tone/charset controls, cached redraws, tests, verification, and small-batch commits.
 
 **Architecture:** `src/ascii.js` owns renderer math and plain-data grid helpers. `src/App.jsx` owns canvas orchestration, still-image grid cache invalidation, and UI controls. Video keeps the existing direct rendering path.
 

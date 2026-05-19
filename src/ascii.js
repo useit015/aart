@@ -13,15 +13,6 @@ export const GRID_QUALITY_PRESETS = {
 
 export const GRID_QUALITY_ORDER = ["soft", "balanced", "detailed", "ultra"];
 
-export const PALETTE_MODES = [
-  { id: "source", label: "Source", swatch: "linear-gradient(135deg, #ff2a7f, #21d4fd)" },
-  { id: "graphite", label: "Graphite", swatch: "#70767c" },
-  { id: "mint", label: "Mint", swatch: "#7dc495" },
-  { id: "amber", label: "Amber", swatch: "#e1b35a" },
-  { id: "duotone", label: "Duotone", swatch: "linear-gradient(135deg, #17303d, #f4eed2)" },
-  { id: "mono", label: "Mono", swatch: "#ffffff" }
-];
-
 export const CHARSET_PRESETS = [
   { id: "standard", label: "Standard", value: CHAR_SETS.standard },
   { id: "detailed", label: "Detailed", value: CHAR_SETS.detailed },
@@ -31,11 +22,6 @@ export const CHARSET_PRESETS = [
 ];
 
 const DEFAULT_CELL_ASPECT = 1.8;
-const GRAPHITE_PALETTE = ["#0f1112", "#232729", "#3d4347", "#70767c", "#b8c0c8", "#edf2f6"];
-const MINT_PALETTE = ["#07100b", "#11331f", "#1f5d39", "#3e9061", "#7dc495", "#dff5e4"];
-const AMBER_PALETTE = ["#110a03", "#392112", "#72401d", "#b86d28", "#e1b35a", "#fff1c4"];
-const DUOTONE_PALETTE = ["#081015", "#17303d", "#2d5967", "#5c8d8f", "#b8c9b1", "#f4eed2"];
-const MONO_PALETTE = ["#101214", "#2f3438", "#5f676f", "#97a1ab", "#d7dfe8", "#ffffff"];
 
 export const QUALITY_PRESET_SETTING_KEYS = [
   "fontSize",
@@ -171,7 +157,6 @@ export function createDefaultSettings() {
     qualityPreset: "balanced",
     gridQuality: "balanced",
     gridColumns: GRID_QUALITY_PRESETS.balanced.columns,
-    paletteMode: "source",
     charsetPreset: "standard",
     fontSize: 11,
     characterSet: "standard",
@@ -323,18 +308,8 @@ export function applyToneCurve(luminance, settings = createDefaultSettings()) {
   return Math.round(normalized * 255);
 }
 
-export function paletteColorFromRgb(color, tonedLuminance, paletteMode = "source") {
-  if (paletteMode === "source") {
-    return `rgb(${clamp(Math.round(color.r || 0), 0, 255)}, ${clamp(Math.round(color.g || 0), 0, 255)}, ${clamp(Math.round(color.b || 0), 0, 255)})`;
-  }
-
-  const normalized = clamp(tonedLuminance, 0, 255) / 255;
-  if (paletteMode === "graphite") return samplePalette(GRAPHITE_PALETTE, normalized);
-  if (paletteMode === "mint") return samplePalette(MINT_PALETTE, normalized);
-  if (paletteMode === "amber") return samplePalette(AMBER_PALETTE, normalized);
-  if (paletteMode === "duotone") return samplePalette(DUOTONE_PALETTE, normalized);
-  if (paletteMode === "mono") return samplePalette(MONO_PALETTE, normalized);
-  return paletteColorFromRgb(color, tonedLuminance, "source");
+export function rgbColorFromSample(color) {
+  return `rgb(${clamp(Math.round(color.r || 0), 0, 255)}, ${clamp(Math.round(color.g || 0), 0, 255)}, ${clamp(Math.round(color.b || 0), 0, 255)})`;
 }
 
 export function sampleAsciiGrid(imageData, width, height, settings = createDefaultSettings()) {
@@ -406,7 +381,7 @@ export function decodeAsciiGrid(grid, settings = createDefaultSettings()) {
       w: 1 / grid.cols,
       h: 1 / grid.rows,
       luminance,
-      color: paletteColorFromRgb(sample, luminance, settings.paletteMode || "source"),
+      color: rgbColorFromSample(sample),
       glyph: glyphFromTonedLuminance(luminance, settings)
     });
   });
@@ -586,11 +561,6 @@ function glyphFromTonedLuminance(luminance, settings) {
   if (chars.length === 1) return chars[0] || " ";
   const index = Math.max(0, Math.min(chars.length - 1, Math.round((clamp(luminance, 0, 255) / 255) * (chars.length - 1))));
   return chars[index] || chars[chars.length - 1] || " ";
-}
-
-function samplePalette(palette, normalized) {
-  const index = Math.round(clamp(normalized, 0, 1) * (palette.length - 1));
-  return palette[index] || palette[palette.length - 1] || "#ffffff";
 }
 
 function clampInteger(value, min, max) {

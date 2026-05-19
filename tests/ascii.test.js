@@ -3,7 +3,6 @@ import {
   CHAR_SETS,
   CHARSET_PRESETS,
   GRID_QUALITY_PRESETS,
-  PALETTE_MODES,
   QUALITY_PRESET_ORDER,
   QUALITY_PRESETS,
   QUALITY_PRESET_SETTING_KEYS,
@@ -18,7 +17,6 @@ import {
   luminanceToGlyph,
   matchesQualityPreset,
   packRgb565,
-  paletteColorFromRgb,
   resolveBackgroundBlurFrame,
   resolveCellMetrics,
   resolvePostProcessingPlan,
@@ -136,13 +134,6 @@ describe("ASCII renderer primitives", () => {
     expect(applyToneCurve(128, { brightness: 10, contrast: 50, gamma: 100, invert: true })).toBe(89);
   });
 
-  it("maps palette modes from source color or toned luminance", () => {
-    expect(PALETTE_MODES.map((mode) => mode.id)).toEqual(["source", "graphite", "mint", "amber", "duotone", "mono"]);
-    expect(paletteColorFromRgb({ r: 12, g: 34, b: 56 }, 128, "source")).toBe("rgb(12, 34, 56)");
-    expect(paletteColorFromRgb({ r: 12, g: 34, b: 56 }, 255, "mono")).toBe("#ffffff");
-    expect(paletteColorFromRgb({ r: 12, g: 34, b: 56 }, 0, "graphite")).toBe("#0f1112");
-  });
-
   it("samples and decodes still-image ascii grids without mutating sampled data", () => {
     const imageData = {
       data: new Uint8ClampedArray([
@@ -154,7 +145,6 @@ describe("ASCII renderer primitives", () => {
       ...createDefaultSettings(),
       gridQuality: "balanced",
       gridColumns: 2,
-      paletteMode: "source",
       characters: " .#",
       characterSet: "custom",
       coverage: 100,

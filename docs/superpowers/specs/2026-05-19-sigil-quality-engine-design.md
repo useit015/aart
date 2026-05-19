@@ -2,7 +2,7 @@
 
 ## Goal
 
-Improve still-image ASCII output quality by borrowing the best-fitting ideas from `~/workspace/sigil`: a source-aware sampled grid, corrected aspect rows, cleaner tone and palette decoding, richer charset presets, and a redraw path that can reuse sampled data for visual tuning.
+Improve still-image ASCII output quality by borrowing the best-fitting ideas from `~/workspace/sigil`: a source-aware sampled grid, corrected aspect rows, cleaner tone decoding, richer glyph presets, and a redraw path that can reuse sampled data for visual tuning.
 
 This design intentionally targets still images first. Uploaded video playback and export behavior stay on the current rendering path until a later video-specific upgrade.
 
@@ -11,7 +11,7 @@ This design intentionally targets still images first. Uploaded video playback an
 Users should get sharper, cleaner still-image output with fewer muddy midtones, better aspect preservation, and more polished color looks. The controls should make the quality model clear:
 
 - Grid quality changes how much source detail is sampled.
-- Palette, charset, tone, and gamma change how the sampled grid is decoded and rendered.
+- Glyph set, tone, and gamma change how the sampled grid is decoded and rendered.
 - Manual tuning remains available without breaking upload, background, crop, mask, light, animation, or export workflows.
 
 ## Source Ideas From Sigil
@@ -21,7 +21,6 @@ Useful Sigil concepts:
 - Conversion quality presets based on grid columns (`tiny`, `light`, `balanced`, `sharp`, `ultra`).
 - Corrected row calculation from source aspect ratio and cell aspect.
 - Separate sampled source data from decode-time look controls.
-- Palette modes such as source color, graphite, mint, amber, duotone, and mono.
 - Charset presets beyond one default ramp.
 - Tone curve order: brightness, contrast, gamma, invert.
 - Compact stored per-cell color/luma data that can be redrawn without re-reading source pixels.
@@ -51,10 +50,8 @@ The app will add a two-stage still-image path:
 2. **Decode stage**
    - Apply tone controls in this order: brightness, contrast, gamma, invert.
    - Apply coverage, density, and edge emphasis.
-   - Map toned luminance to glyphs through the active charset.
-   - Resolve color through palette mode:
-     - source color uses sampled RGB
-     - graphite/mint/amber/duotone/mono map toned luminance into fixed palettes
+   - Map toned luminance to glyphs through the active glyph set.
+   - Resolve color from sampled RGB.
 
 3. **Render stage**
    - Draw decoded cells to the visible canvas using the existing style renderer where possible.
@@ -64,7 +61,7 @@ The visible canvas can remain the current fixed preview/export canvas size. The 
 
 ## Controls
 
-Add a compact **Output Quality** section in the Look tab.
+Add a compact **Detail** section in the Look tab.
 
 ### Grid Quality
 
@@ -77,20 +74,7 @@ Presets:
 
 Grid quality updates sampled grid density. Existing quality presets can continue to set font size, coverage, edge, density, contrast, and gamma, but this new grid setting becomes the primary detail control.
 
-### Palette Mode
-
-Modes:
-
-- Source
-- Graphite
-- Mint
-- Amber
-- Duotone
-- Mono
-
-Palette mode changes should redraw from cached sampled data.
-
-### Charset Presets
+### Glyph Set
 
 Presets:
 
@@ -116,7 +100,6 @@ Add renderer helpers in `src/ascii.js`:
 - `packRgb565(red, green, blue)` if useful for compact tests and future reuse
 - `sampleAsciiGrid(imageData, width, height, settings)`
 - `decodeAsciiGrid(grid, settings)`
-- `paletteColorFromRgb(color, tonedLuma, paletteMode)`
 - `applyToneCurve(luma, settings)`
 
 The grid result should be plain JavaScript data so tests can inspect it without a browser canvas.
@@ -140,7 +123,6 @@ Rebuild the sampled grid when any of these change:
 
 Do not rebuild the sampled grid for:
 
-- palette mode
 - charset
 - brightness/contrast/gamma/invert
 - coverage/density/edge emphasis
@@ -154,7 +136,7 @@ Those controls should decode/redraw from cached grid data.
 
 - If the browser cannot provide a 2D canvas context, keep the existing no-op behavior and show a concise status message when possible.
 - Clamp invalid quality values to Balanced.
-- Clamp tone and palette inputs to valid ranges.
+- Clamp tone inputs to valid ranges.
 - If the cached grid is missing or stale, rebuild synchronously from the current source before drawing.
 
 ## Testing
@@ -164,16 +146,14 @@ Unit tests in `tests/ascii.test.js`:
 - corrected rows preserve source aspect.
 - RGB luminance matches locked values.
 - tone curve applies brightness, contrast, gamma, invert in order.
-- palette modes return expected source and remapped colors.
 - sampled grid stores averaged RGB/luma/alpha.
-- decode grid maps glyphs and palette colors without mutating grid data.
+- decode grid maps glyphs and source colors without mutating grid data.
 
 App tests in `tests/app.test.jsx`:
 
-- Output Quality controls appear in the Look tab.
+- Detail controls appear in the Look tab.
 - Grid quality buttons update active state.
-- Palette mode buttons appear and can be selected.
-- Charset preset selection updates the Chars input.
+- Glyph set selection updates the Chars input.
 - Upload/video controls remain present and demo controls remain absent.
 
 Verification:
@@ -200,7 +180,6 @@ Chosen defaults:
 - Still images use the new quality grid.
 - Videos keep the existing direct render path.
 - Balanced remains the default quality.
-- Palette default is Source.
 - Ultra is allowed in preview and export, but should be bounded to avoid runaway canvas work.
 
 No unresolved decisions remain for implementation planning.

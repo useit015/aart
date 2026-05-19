@@ -149,19 +149,18 @@ describe("Glyph Studio app shell", () => {
     expect(screen.getByText("Active quality preset: Custom")).toBeInTheDocument();
   });
 
-  it("exposes sigil-inspired output quality controls", async () => {
+  it("exposes detail and glyph set controls without palette mode", async () => {
     render(<App />);
 
     await userEvent.click(screen.getByRole("tab", { name: "Look" }));
-    expect(screen.getByText("Output Quality")).toBeInTheDocument();
+    expect(screen.getByText("Detail")).toBeInTheDocument();
+    expect(screen.getByText("Glyph Set")).toBeInTheDocument();
+    expect(screen.queryByText("Palette Mode")).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Grid quality Ultra" }));
-    expect(screen.getAllByText("Grid quality: Ultra").length).toBeGreaterThan(0);
+    await userEvent.click(screen.getByRole("button", { name: "Detail Ultra" }));
+    expect(screen.getAllByText("Detail: Ultra").length).toBeGreaterThan(0);
 
-    await userEvent.click(screen.getByRole("button", { name: "Palette Amber" }));
-    expect(screen.getAllByText("Palette mode: Amber").length).toBeGreaterThan(0);
-
-    await userEvent.click(screen.getByRole("button", { name: "Charset Blocks" }));
+    await userEvent.click(screen.getByRole("button", { name: "Glyph set Blocks" }));
     expect(screen.getByLabelText("Chars")).toHaveValue(" ░▒▓█");
     expect(screen.queryByRole("button", { name: "Random Demo" })).not.toBeInTheDocument();
   });

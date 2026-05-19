@@ -24,7 +24,6 @@ import {
   CHARSET_PRESETS,
   GRID_QUALITY_ORDER,
   GRID_QUALITY_PRESETS,
-  PALETTE_MODES,
   QUALITY_PRESET_ORDER,
   QUALITY_PRESETS,
   STYLE_LABELS,
@@ -887,14 +886,7 @@ function App() {
       fontSize: preset.fontSize,
       qualityPreset: "custom"
     }));
-    setStatus(`Grid quality: ${preset.label}`);
-  }, [trackEvent]);
-
-  const selectPaletteMode = useCallback((paletteMode) => {
-    const mode = PALETTE_MODES.find((item) => item.id === paletteMode) || PALETTE_MODES[0];
-    trackEvent("palette_mode_change", { paletteMode: mode.id });
-    setSettings((current) => ({ ...current, paletteMode: mode.id }));
-    setStatus(`Palette mode: ${mode.label}`);
+    setStatus(`Detail: ${preset.label}`);
   }, [trackEvent]);
 
   const selectCharsetPreset = useCallback((presetId) => {
@@ -1923,36 +1915,7 @@ function App() {
                       <RangeControl label="Font Size" min={3} max={48} value={settings.fontSize} onChange={(value) => updateQualitySetting("fontSize", value)} />
                     ) : null}
                     <div className="flex flex-col gap-2">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <Label className="text-xs text-muted-foreground">Palette Mode</Label>
-                        <Badge variant="outline">
-                          Palette mode: {PALETTE_MODES.find((mode) => mode.id === settings.paletteMode)?.label || "Source"}
-                        </Badge>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        {PALETTE_MODES.map((mode) => (
-                          <Button
-                            key={mode.id}
-                            type="button"
-                            size="sm"
-                            variant={settings.paletteMode === mode.id ? "secondary" : "outline"}
-                            className="justify-start gap-2"
-                            aria-label={`Palette ${mode.label}`}
-                            aria-pressed={settings.paletteMode === mode.id}
-                            onClick={() => selectPaletteMode(mode.id)}
-                          >
-                            <span
-                              aria-hidden="true"
-                              className="size-4 rounded-sm border"
-                              style={{ background: mode.swatch }}
-                            />
-                            {mode.label}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Label className="text-xs text-muted-foreground">Charset Presets</Label>
+                      <Label className="text-xs text-muted-foreground">Glyph Set</Label>
                       <div className="flex flex-wrap gap-2">
                         {CHARSET_PRESETS.map((preset) => (
                           <Button
@@ -1960,7 +1923,7 @@ function App() {
                             type="button"
                             size="sm"
                             variant={settings.charsetPreset === preset.id ? "secondary" : "outline"}
-                            aria-label={`Charset ${preset.label}`}
+                            aria-label={`Glyph set ${preset.label}`}
                             aria-pressed={settings.charsetPreset === preset.id}
                             onClick={() => selectCharsetPreset(preset.id)}
                           >
@@ -1992,9 +1955,9 @@ function App() {
                   <ControlCard title="Intensity" description="Luminance, coverage, threshold, and color response.">
                     <div className="flex flex-col gap-2">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <Label className="text-xs text-muted-foreground">Output Quality</Label>
+                        <Label className="text-xs text-muted-foreground">Detail</Label>
                         <Badge variant="outline">
-                          Grid quality: {GRID_QUALITY_PRESETS[settings.gridQuality]?.label || "Balanced"}
+                          Detail: {GRID_QUALITY_PRESETS[settings.gridQuality]?.label || "Balanced"}
                         </Badge>
                       </div>
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -2004,7 +1967,7 @@ function App() {
                             type="button"
                             size="sm"
                             variant={settings.gridQuality === qualityId ? "secondary" : "outline"}
-                            aria-label={`Grid quality ${GRID_QUALITY_PRESETS[qualityId].label}`}
+                            aria-label={`Detail ${GRID_QUALITY_PRESETS[qualityId].label}`}
                             aria-pressed={settings.gridQuality === qualityId}
                             onClick={() => selectGridQuality(qualityId)}
                           >
