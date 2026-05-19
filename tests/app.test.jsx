@@ -4,6 +4,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../src/App.jsx";
+import { CHAR_SETS } from "../src/ascii.js";
 
 describe("Glyph Studio app shell", () => {
   afterEach(() => {
@@ -136,6 +137,22 @@ describe("Glyph Studio app shell", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "View Only" }));
     expect(screen.getByText("Active tool: View Only")).toBeInTheDocument();
+  });
+
+  it("applies quality presets and marks manual quality edits as custom", async () => {
+    render(<App />);
+
+    await userEvent.click(screen.getByRole("tab", { name: "Look" }));
+    expect(screen.getByText("Quality Presets")).toBeInTheDocument();
+    expect(screen.getByText("Active quality preset: Balanced")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Detailed" }));
+    expect(screen.getByText("Active quality preset: Detailed")).toBeInTheDocument();
+    expect(screen.getByLabelText("Chars")).toHaveValue(CHAR_SETS.detailed);
+    expect(screen.getByText("145%")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Chars"), { target: { value: "@@" } });
+    expect(screen.getByText("Active quality preset: Custom")).toBeInTheDocument();
   });
 
   it("supports the standalone changelog route", () => {

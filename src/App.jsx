@@ -22,7 +22,10 @@ import {
 } from "lucide-react";
 import {
   CHAR_SETS,
+  QUALITY_PRESET_ORDER,
+  QUALITY_PRESETS,
   STYLE_LABELS,
+  applyQualityPreset,
   buildAsciiCells,
   clamp,
   computeAnimationTransform,
@@ -933,6 +936,35 @@ function App() {
   const updateSetting = useCallback((key, value) => {
     trackEvent("setting_change", { key, value });
     setSettings((current) => ({ ...current, [key]: value }));
+  }, [trackEvent]);
+
+  const selectQualityPreset = useCallback((presetId) => {
+    if (presetId === "custom") {
+      trackEvent("quality_preset_change", { preset: presetId });
+      setSettings((current) => ({ ...current, qualityPreset: "custom" }));
+      setStatus("Custom quality preset selected");
+      return;
+    }
+
+    const preset = QUALITY_PRESETS[presetId];
+    trackEvent("quality_preset_change", { preset: presetId });
+    setSettings((current) => applyQualityPreset(current, presetId));
+    setStatus(`${preset?.label || "Custom"} quality preset applied`);
+  }, [trackEvent]);
+
+  const updateQualitySetting = useCallback((key, value) => {
+    trackEvent("setting_change", { key, value, qualityPreset: "custom" });
+    setSettings((current) => ({ ...current, [key]: value, qualityPreset: "custom" }));
+  }, [trackEvent]);
+
+  const updateCharacterSet = useCallback((value) => {
+    trackEvent("setting_change", { key: "characterSet", value, qualityPreset: "custom" });
+    setSettings((current) => ({
+      ...current,
+      characterSet: value,
+      characters: value === "custom" ? current.characters : CHAR_SETS[value],
+      qualityPreset: "custom"
+    }));
   }, [trackEvent]);
 
   const updateEffect = useCallback((key, value) => {
@@ -1988,12 +2020,12 @@ function App() {
                       </div>
                     )}
                     {settings.style !== "3d" ? (
-                      <RangeControl label="Font Size" min={3} max={48} value={settings.fontSize} onChange={(value) => updateSetting("fontSize", value)} />
+                      <RangeControl label="Font Size" min={3} max={48} value={settings.fontSize} onChange={(value) => updateQualitySetting("fontSize", value)} />
                     ) : null}
-                    <SelectControl label="Character Set" value={settings.characterSet} onChange={(value) => setSettings((current) => ({ ...current, characterSet: value, characters: value === "custom" ? current.characters : CHAR_SETS[value] }))} options={[["standard", "Standard"], ["detailed", "Detailed"], ["minimal", "Minimal"], ["custom", "Custom"]]} />
+                    <SelectControl label="Character Set" value={settings.characterSet} onChange={updateCharacterSet} options={[["standard", "Standard"], ["detailed", "Detailed"], ["minimal", "Minimal"], ["custom", "Custom"]]} />
                     <div className="flex flex-col gap-1.5">
                       <Label className="text-xs text-muted-foreground">Chars</Label>
-                      <Input aria-label="Chars" value={settings.characters} onChange={(event) => updateSetting("characters", event.target.value)} />
+                      <Input aria-label="Chars" value={settings.characters} onChange={(event) => updateQualitySetting("characters", event.target.value)} />
                     </div>
                     <SelectControl label="Blend Mode" value={settings.blendMode} onChange={(value) => updateSetting("blendMode", value)} options={[["source-over", "Normal"], ["overlay", "Overlay"], ["color-dodge", "Color Dodge"], ["screen", "Screen"], ["lighter", "Lighter"]]} />
                     <RangeControl label="Char Opacity" min={0} max={100} value={settings.charOpacity} suffix="%" onChange={(value) => updateSetting("charOpacity", value)} />
@@ -2011,12 +2043,38 @@ function App() {
                   </ControlCard>
 
                   <ControlCard title="Intensity" description="Luminance, coverage, threshold, and color response.">
-                    <RangeControl label="Coverage" min={0} max={100} value={settings.coverage} suffix="%" onChange={(value) => updateSetting("coverage", value)} />
-                    <RangeControl label="Edge Emphasis" min={0} max={100} value={settings.edgeEmphasis} suffix="%" onChange={(value) => updateSetting("edgeEmphasis", value)} />
-                    <RangeControl label="Density" min={0} max={100} value={settings.density} suffix="%" onChange={(value) => updateSetting("density", value)} />
-                    <RangeControl label="Brightness" min={-100} max={100} value={settings.brightness} onChange={(value) => updateSetting("brightness", value)} />
-                    <RangeControl label="Contrast" min={-100} max={100} value={settings.contrast} onChange={(value) => updateSetting("contrast", value)} />
-                    <RangeControl label="Gamma" min={40} max={260} value={settings.gamma} suffix="%" onChange={(value) => updateSetting("gamma", value)} />
+                    <div className="flex flex-col gap-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <Label className="text-xs text-muted-foreground">Quality Presets</Label>
+                        <Badge variant="outline" className="max-w-full shrink-0">
+                          Active quality preset: {QUALITY_PRESETS[settings.qualityPreset]?.label || "Custom"}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                        {[...QUALITY_PRESET_ORDER, "custom"].map((presetId) => {
+                          const label = QUALITY_PRESETS[presetId]?.label || "Custom";
+                          return (
+                            <Button
+                              key={presetId}
+                              type="button"
+                              size="sm"
+                              variant={settings.qualityPreset === presetId ? "secondary" : "outline"}
+                              className="min-w-0"
+                              aria-pressed={settings.qualityPreset === presetId}
+                              onClick={() => selectQualityPreset(presetId)}
+                            >
+                              {label}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <RangeControl label="Coverage" min={0} max={100} value={settings.coverage} suffix="%" onChange={(value) => updateQualitySetting("coverage", value)} />
+                    <RangeControl label="Edge Emphasis" min={0} max={100} value={settings.edgeEmphasis} suffix="%" onChange={(value) => updateQualitySetting("edgeEmphasis", value)} />
+                    <RangeControl label="Density" min={0} max={100} value={settings.density} suffix="%" onChange={(value) => updateQualitySetting("density", value)} />
+                    <RangeControl label="Brightness" min={-100} max={100} value={settings.brightness} onChange={(value) => updateQualitySetting("brightness", value)} />
+                    <RangeControl label="Contrast" min={0} max={200} value={settings.contrast} onChange={(value) => updateQualitySetting("contrast", value)} />
+                    <RangeControl label="Gamma" min={40} max={260} value={settings.gamma} suffix="%" onChange={(value) => updateQualitySetting("gamma", value)} />
                   </ControlCard>
                 </TabsContent>
 

@@ -4,6 +4,79 @@ export const CHAR_SETS = {
   minimal: "@%#*+=-:. "
 };
 
+export const QUALITY_PRESET_SETTING_KEYS = [
+  "fontSize",
+  "characterSet",
+  "characters",
+  "coverage",
+  "edgeEmphasis",
+  "density",
+  "brightness",
+  "contrast",
+  "gamma"
+];
+
+export const QUALITY_PRESET_ORDER = ["soft", "balanced", "detailed", "poster"];
+
+export const QUALITY_PRESETS = {
+  soft: {
+    label: "Soft",
+    settings: {
+      fontSize: 14,
+      characterSet: "standard",
+      characters: CHAR_SETS.standard,
+      coverage: 78,
+      edgeEmphasis: 25,
+      density: 12,
+      brightness: 4,
+      contrast: 88,
+      gamma: 95
+    }
+  },
+  balanced: {
+    label: "Balanced",
+    settings: {
+      fontSize: 11,
+      characterSet: "standard",
+      characters: CHAR_SETS.standard,
+      coverage: 85,
+      edgeEmphasis: 60,
+      density: 30,
+      brightness: 0,
+      contrast: 100,
+      gamma: 100
+    }
+  },
+  detailed: {
+    label: "Detailed",
+    settings: {
+      fontSize: 8,
+      characterSet: "detailed",
+      characters: CHAR_SETS.detailed,
+      coverage: 94,
+      edgeEmphasis: 82,
+      density: 26,
+      brightness: 0,
+      contrast: 112,
+      gamma: 145
+    }
+  },
+  poster: {
+    label: "Poster",
+    settings: {
+      fontSize: 12,
+      characterSet: "minimal",
+      characters: CHAR_SETS.minimal,
+      coverage: 92,
+      edgeEmphasis: 55,
+      density: 58,
+      brightness: 6,
+      contrast: 150,
+      gamma: 120
+    }
+  }
+};
+
 export const STYLE_LABELS = {
   characters: "Characters",
   "block-chars": "Block Characters",
@@ -62,6 +135,7 @@ export function createDefaultSettings() {
     discoUniformity: 80,
     discoRandomize: true,
     discoSeed: 0,
+    qualityPreset: "balanced",
     fontSize: 11,
     characterSet: "standard",
     characters: CHAR_SETS.standard,
@@ -124,6 +198,26 @@ export function createDefaultSettings() {
       sparklesAmount: 40
     }
   };
+}
+
+export function applyQualityPreset(settings, presetId) {
+  const preset = QUALITY_PRESETS[presetId];
+  if (!preset) {
+    return { ...settings, qualityPreset: "custom" };
+  }
+
+  return {
+    ...settings,
+    ...preset.settings,
+    qualityPreset: presetId
+  };
+}
+
+export function matchesQualityPreset(settings, presetId) {
+  const preset = QUALITY_PRESETS[presetId];
+  if (!preset) return false;
+
+  return QUALITY_PRESET_SETTING_KEYS.every((key) => settings[key] === preset.settings[key]);
 }
 
 export function resolveCharacters(settings) {

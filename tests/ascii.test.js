@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   CHAR_SETS,
+  QUALITY_PRESET_ORDER,
+  QUALITY_PRESETS,
+  QUALITY_PRESET_SETTING_KEYS,
   adjustColorChannel,
+  applyQualityPreset,
   buildAsciiCells,
   computeAnimationTransform,
   createDefaultSettings,
   luminanceToGlyph,
+  matchesQualityPreset,
   resolveBackgroundBlurFrame,
   resolveCellMetrics,
   resolvePostProcessingPlan
@@ -94,6 +99,49 @@ describe("ASCII renderer primitives", () => {
 
     expect(luminanceToGlyph(64, settings)).toBe("+");
     expect(adjustColorChannel(64, settings)).toBe(64);
+  });
+
+  it("applies quality presets without touching unrelated settings", () => {
+    const base = {
+      ...createDefaultSettings(),
+      exportFormat: "gif",
+      backgroundMode: "none",
+      lights: true,
+      mask: true,
+      animated: true,
+      effects: { ...createDefaultSettings().effects, bloom: true }
+    };
+
+    const detailed = applyQualityPreset(base, "detailed");
+
+    expect(detailed.qualityPreset).toBe("detailed");
+    expect(detailed.characterSet).toBe("detailed");
+    expect(detailed.characters).toBe(CHAR_SETS.detailed);
+    expect(detailed.fontSize).toBeLessThan(base.fontSize);
+    expect(detailed.gamma).toBeGreaterThan(base.gamma);
+    expect(detailed.exportFormat).toBe("gif");
+    expect(detailed.backgroundMode).toBe("none");
+    expect(detailed.lights).toBe(true);
+    expect(detailed.mask).toBe(true);
+    expect(detailed.animated).toBe(true);
+    expect(detailed.effects.bloom).toBe(true);
+    expect(matchesQualityPreset(detailed, "detailed")).toBe(true);
+  });
+
+  it("defines the expected user-facing quality presets", () => {
+    expect(QUALITY_PRESET_ORDER).toEqual(["soft", "balanced", "detailed", "poster"]);
+    expect(Object.keys(QUALITY_PRESETS)).toEqual(QUALITY_PRESET_ORDER);
+    expect(QUALITY_PRESET_SETTING_KEYS).toEqual([
+      "fontSize",
+      "characterSet",
+      "characters",
+      "coverage",
+      "edgeEmphasis",
+      "density",
+      "brightness",
+      "contrast",
+      "gamma"
+    ]);
   });
 
   it("uses style-specific cell metrics for mosaic and cube controls", () => {
