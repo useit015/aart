@@ -1,8 +1,8 @@
 import "@testing-library/jest-dom/vitest";
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../src/App.jsx";
 
 describe("ASCII Magic app shell", () => {
@@ -66,6 +66,26 @@ describe("ASCII Magic app shell", () => {
     expect(screen.getAllByLabelText(/Crop handle/i)).toHaveLength(8);
     expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Redo" })).toBeInTheDocument();
+  });
+
+  it("accepts video uploads even when the browser reports a generic MIME type", async () => {
+    const originalCreateObjectUrl = URL.createObjectURL;
+    URL.createObjectURL = vi.fn(() => "blob:clip");
+    try {
+      const { container } = render(<App />);
+      const fileInput = container.querySelector('input[type="file"]');
+      const videoFile = new File(["video"], "clip.mp4", { type: "application/octet-stream" });
+
+      expect(fileInput).not.toBeNull();
+      expect(fileInput).toHaveAttribute("accept", expect.stringContaining(".mp4"));
+      fireEvent.change(fileInput, { target: { files: [videoFile] } });
+
+      expect(screen.getByText("clip.mp4 loaded")).toBeInTheDocument();
+      expect(screen.getByText("Video source")).toBeInTheDocument();
+      expect(screen.queryByText("Unsupported file type")).not.toBeInTheDocument();
+    } finally {
+      URL.createObjectURL = originalCreateObjectUrl;
+    }
   });
 
   it("covers the remaining hard parity surfaces the previous audit missed", async () => {

@@ -117,6 +117,15 @@ const VIDEO_DEMO_PRESETS = Array.from({ length: 3 }, (_, index) => ({
   label: `Video ${String(index + 1).padStart(2, "0")}`
 }));
 
+const IMAGE_EXTENSIONS = new Set(["avif", "bmp", "gif", "jpeg", "jpg", "png", "svg", "webp"]);
+const VIDEO_EXTENSIONS = new Set(["avi", "m4v", "mkv", "mov", "mp4", "mpeg", "mpg", "ogv", "webm"]);
+const UPLOAD_ACCEPT = [
+  "image/*",
+  "video/*",
+  ...[...IMAGE_EXTENSIONS].map((extension) => `.${extension}`),
+  ...[...VIDEO_EXTENSIONS].map((extension) => `.${extension}`)
+].join(",");
+
 const BACKGROUND_PALETTES = [
   ["#101820", "#fee715", "#1f7a8c"],
   ["#0b132b", "#5bc0be", "#fca311"],
@@ -282,6 +291,22 @@ function getRelativePoint(event, rect) {
     x: clamp((event.clientX - rect.left) / rect.width, 0, 1),
     y: clamp((event.clientY - rect.top) / rect.height, 0, 1)
   };
+}
+
+function getFileExtension(fileName = "") {
+  const match = /\.([^.]+)$/.exec(fileName.toLowerCase());
+  return match ? match[1] : "";
+}
+
+function getUploadKind(file) {
+  const type = file.type || "";
+  if (type.startsWith("image/")) return "image";
+  if (type.startsWith("video/")) return "video";
+
+  const extension = getFileExtension(file.name);
+  if (IMAGE_EXTENSIONS.has(extension)) return "image";
+  if (VIDEO_EXTENSIONS.has(extension)) return "video";
+  return null;
 }
 
 function sanitizeCrop(crop) {
@@ -870,13 +895,14 @@ function App() {
 
   const handleFile = useCallback((file) => {
     if (!file) return;
-    if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+    const uploadKind = getUploadKind(file);
+    if (!uploadKind) {
       setStatus("Unsupported file type");
       return;
     }
-    loadSource(URL.createObjectURL(file), file.name || "Upload", file.type.startsWith("video/") ? "video" : "image", {
+    loadSource(URL.createObjectURL(file), file.name || "Upload", uploadKind, {
       name: file.name || "Upload",
-      type: file.type || "unknown",
+      type: file.type || `${uploadKind}/*`,
       size: file.size || 0
     });
   }, [loadSource]);
@@ -1589,7 +1615,7 @@ function App() {
 
           <ScrollArea className="xl:h-[calc(100vh-73px)]">
             <div className="p-4">
-              <input ref={fileRef} hidden type="file" accept="image/*,video/*" onChange={(event) => handleFile(event.target.files[0])} />
+              <input ref={fileRef} hidden type="file" accept={UPLOAD_ACCEPT} onChange={(event) => handleFile(event.target.files[0])} />
               <Tabs defaultValue="source" className="gap-4">
                 <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="source">Source</TabsTrigger>
