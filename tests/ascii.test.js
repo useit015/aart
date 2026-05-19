@@ -321,6 +321,15 @@ describe("ASCII renderer primitives", () => {
     expect(isInteractiveMotionActive({ ...settings, idleMotion: "drift" }, pointer, { active: false, startedAt: 0 }, 1200)).toBe(true);
   });
 
+  it("defines organic interaction tuning defaults", () => {
+    const settings = createDefaultSettings();
+
+    expect(settings.motionSpring).toBe(70);
+    expect(settings.motionDamping).toBe(88);
+    expect(settings.motionTurbulence).toBe(0);
+    expect(settings.motionTrail).toBe(0);
+  });
+
   it("maps every public post-processing toggle to a render pass", () => {
     const settings = createDefaultSettings();
     Object.entries(settings.effects).forEach(([key, value]) => {
