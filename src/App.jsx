@@ -17,8 +17,7 @@ import {
   SquareIcon,
   SunIcon,
   Trash2Icon,
-  Undo2Icon,
-  WandSparklesIcon
+  Undo2Icon
 } from "lucide-react";
 import {
   CHAR_SETS,
@@ -102,25 +101,6 @@ const EFFECTS = [
   ["sparkles", "Sparkles"]
 ];
 
-const DEMO_PALETTES = [
-  ["#ff2a7f", "#21d4fd", "#10101a"],
-  ["#fed766", "#2ab7ca", "#2d3047"],
-  ["#f25f5c", "#70c1b3", "#111111"],
-  ["#b8f2e6", "#ffa69e", "#1b1b32"],
-  ["#9b5de5", "#00f5d4", "#11151c"],
-  ["#f15bb5", "#fee440", "#141414"]
-];
-
-const DEMO_PRESETS = Array.from({ length: 31 }, (_, index) => ({
-  id: index + 1,
-  label: `Demo ${String(index + 1).padStart(2, "0")}`
-}));
-
-const VIDEO_DEMO_PRESETS = Array.from({ length: 3 }, (_, index) => ({
-  id: index + 1,
-  label: `Video ${String(index + 1).padStart(2, "0")}`
-}));
-
 const IMAGE_EXTENSIONS = new Set(["avif", "bmp", "gif", "jpeg", "jpg", "png", "svg", "webp"]);
 const VIDEO_EXTENSIONS = new Set(["avi", "m4v", "mkv", "mov", "mp4", "mpeg", "mpg", "ogv", "webm"]);
 const UPLOAD_ACCEPT = [
@@ -157,7 +137,7 @@ const BACKGROUND_PRESETS = Array.from({ length: 34 }, (_, index) => {
 const CHANGELOG_ENTRIES = [
   {
     title: "Parity Rebuild",
-    description: "31 demos, 34 backgrounds, video controls, GIF/MP4 exports, crop, lights, masks, and post-processing."
+    description: "34 backgrounds, video controls, GIF/MP4 exports, crop, lights, masks, and post-processing."
   },
   {
     title: "Editor Controls",
@@ -200,47 +180,6 @@ const CROP_HANDLES = [
 
 function isCanvasRuntimeAvailable() {
   return typeof navigator === "undefined" || !/jsdom/i.test(navigator.userAgent);
-}
-
-function createDemoDataUrl(seed = 0) {
-  if (!isCanvasRuntimeAvailable()) {
-    return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="920" height="640"><rect width="920" height="640" fill="#111018"/><text x="80" y="240" fill="#ffffff" font-family="monospace" font-size="96">GLYPH</text><text x="80" y="370" fill="#21d4fd" font-family="monospace" font-size="116">STUDIO ${seed}</text></svg>`)}`;
-  }
-
-  const canvas = document.createElement("canvas");
-  canvas.width = 920;
-  canvas.height = 640;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return "";
-  const [a, b, c] = DEMO_PALETTES[seed % DEMO_PALETTES.length];
-  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-  gradient.addColorStop(0, a);
-  gradient.addColorStop(0.52, b);
-  gradient.addColorStop(1, c);
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.globalCompositeOperation = "screen";
-  for (let i = 0; i < 24; i += 1) {
-    const radius = 28 + ((i * 19 + seed * 11) % 115);
-    const x = (i * 83 + seed * 127) % canvas.width;
-    const y = (i * 47 + seed * 91) % canvas.height;
-    const dot = ctx.createRadialGradient(x, y, 0, x, y, radius);
-    dot.addColorStop(0, "rgba(255,255,255,.92)");
-    dot.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = dot;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalCompositeOperation = "source-over";
-  ctx.fillStyle = "rgba(0,0,0,.28)";
-  ctx.fillRect(0, canvas.height * 0.62, canvas.width, canvas.height * 0.38);
-  ctx.fillStyle = "rgba(255,255,255,.87)";
-  ctx.font = "700 86px ui-monospace, SFMono-Regular, Menlo, monospace";
-  ctx.fillText("GLYPH", 86, 205);
-  ctx.font = "700 116px ui-monospace, SFMono-Regular, Menlo, monospace";
-  ctx.fillText("STUDIO", 84, 338);
-  return canvas.toDataURL("image/png");
 }
 
 function createBackgroundDataUrl(seed = 0) {
@@ -362,34 +301,6 @@ function drawCroppedSource(ctx, source, sourceWidth, sourceHeight, width, height
   ctx.translate(width / 2, height / 2);
   ctx.rotate(((crop.rotation || 0) * Math.PI) / 180);
   ctx.drawImage(source, sx, sy, sw, sh, -width / 2, -height / 2, width, height);
-  ctx.restore();
-}
-
-function drawVideoDemoMotion(ctx, width, height, seed, timeSeconds) {
-  const time = Number(timeSeconds || 0);
-  const hue = (seed * 31 + time * 48) % 360;
-  const sweep = (time % 6) / 6;
-  ctx.save();
-  ctx.globalCompositeOperation = "screen";
-  const beam = ctx.createLinearGradient(width * (sweep - 0.35), 0, width * (sweep + 0.45), height);
-  beam.addColorStop(0, "rgba(255,255,255,0)");
-  beam.addColorStop(0.5, `hsla(${hue}, 95%, 68%, .62)`);
-  beam.addColorStop(1, "rgba(255,255,255,0)");
-  ctx.fillStyle = beam;
-  ctx.fillRect(0, 0, width, height);
-
-  for (let i = 0; i < 10; i += 1) {
-    const x = ((i * 0.137 + time * (0.035 + i * 0.002) + seed * 0.019) % 1) * width;
-    const y = (0.18 + ((i * 0.113 + Math.sin(time * 0.8 + i) * 0.08 + seed * 0.011) % 0.68)) * height;
-    const radius = Math.max(22, Math.min(width, height) * (0.035 + ((i + seed) % 4) * 0.012));
-    const glow = ctx.createRadialGradient(x, y, 0, x, y, radius * 3);
-    glow.addColorStop(0, `hsla(${(hue + i * 34) % 360}, 100%, 72%, .72)`);
-    glow.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.arc(x, y, radius * 3, 0, Math.PI * 2);
-    ctx.fill();
-  }
   ctx.restore();
 }
 
@@ -898,7 +809,6 @@ function App() {
   const [theme, setTheme] = useState("dark");
   const [modal, setModal] = useState(null);
   const [exporting, setExporting] = useState(false);
-  const [demoSeed, setDemoSeed] = useState(0);
   const [fileMeta, setFileMeta] = useState(null);
   const [sourceStats, setSourceStats] = useState(null);
   const [feedbackState, setFeedbackState] = useState({ bug: "idle", feature: "idle" });
@@ -979,7 +889,7 @@ function App() {
     setSourceStats(null);
     setFileMeta(meta || {
       name,
-      type: kind === "video" ? "video/*" : kind === "video-demo" ? "generated/video-demo" : "generated/image",
+      type: kind === "video" ? "video/*" : "generated/image",
       size: 0
     });
     trackEvent("source_loaded", { kind, name });
@@ -993,31 +903,6 @@ function App() {
     }
     setStatus(`${name} loaded`);
   }, [trackEvent]);
-
-  const loadDemo = useCallback(() => {
-    const nextSeed = demoSeed + 1;
-    setDemoSeed(nextSeed);
-    loadSource(createDemoDataUrl(nextSeed), "Demo");
-  }, [demoSeed, loadSource]);
-
-  const loadDemoPreset = useCallback((id) => {
-    setDemoSeed(id);
-    setMaskStrokes([]);
-    setCrop({ x: 0, y: 0, w: 1, h: 1, rotation: 0 });
-    loadSource(createDemoDataUrl(id), `Demo ${String(id).padStart(2, "0")}`);
-  }, [loadSource]);
-
-  const loadVideoDemoPreset = useCallback((id) => {
-    const seed = 100 + id;
-    setDemoSeed(seed);
-    setMaskStrokes([]);
-    setCrop({ x: 0, y: 0, w: 1, h: 1, rotation: 0 });
-    setDuration(8);
-    setSeek(0);
-    setIsPlaying(true);
-    setSettings((current) => ({ ...current, animated: true, animationStyle: id === 1 ? "wave" : id === 2 ? "cascade-lr" : "pulse" }));
-    loadSource(createDemoDataUrl(seed), `Video Demo ${String(id).padStart(2, "0")}`, "video-demo");
-  }, [loadSource]);
 
   const loadBackgroundPreset = useCallback((id) => {
     setBackgroundUrl(createBackgroundDataUrl(id));
@@ -1316,9 +1201,6 @@ function App() {
     const sourceCtx = offscreen.getContext("2d", { willReadFrequently: true });
     if (!sourceCtx) return;
     drawCroppedSource(sourceCtx, source, naturalWidth, naturalHeight, width, height, crop);
-    if (sourceKind === "video-demo") {
-      drawVideoDemoMotion(sourceCtx, width, height, demoSeed, seek);
-    }
 
     const backgroundImage = backgroundImageRef.current;
 
@@ -1410,7 +1292,7 @@ function App() {
     }
 
     applyImageEffects(ctx, width, height, settings, tick);
-  }, [activeLightId, crop, demoSeed, lights, maskStrokes, seek, settings, sourceKind]);
+  }, [activeLightId, crop, lights, maskStrokes, settings, sourceKind]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -1428,44 +1310,20 @@ function App() {
   }, [handlePaste]);
 
   useEffect(() => {
-    if (!sourceUrl) loadDemo();
-  }, []);
-
-  useEffect(() => {
     if (!sourceUrl || sourceKind === "video") return undefined;
     const image = new Image();
     image.crossOrigin = "anonymous";
     image.onload = () => {
       sourceImageRef.current = image;
-      const demoDuration = sourceKind === "video-demo" ? 8 : null;
-      if (demoDuration) setDuration(demoDuration);
       setSourceStats({
         width: image.naturalWidth,
-        height: image.naturalHeight,
-        duration: demoDuration
+        height: image.naturalHeight
       });
       draw();
     };
     image.src = sourceUrl;
     return undefined;
   }, [draw, sourceKind, sourceUrl]);
-
-  useEffect(() => {
-    if (!isPlaying || sourceKind !== "video-demo") return undefined;
-    let frame = 0;
-    let lastTime = performance.now();
-    const advance = (time) => {
-      const delta = ((time - lastTime) / 1000) * playbackRate;
-      lastTime = time;
-      setSeek((current) => {
-        const next = current + delta;
-        return next >= duration ? next % duration : next;
-      });
-      frame = requestAnimationFrame(advance);
-    };
-    frame = requestAnimationFrame(advance);
-    return () => cancelAnimationFrame(frame);
-  }, [duration, isPlaying, playbackRate, sourceKind]);
 
   useEffect(() => {
     if (!backgroundUrl) {
@@ -1769,10 +1627,6 @@ function App() {
                 <p className="font-medium">Drop an image or video here</p>
               </div>
               <p className="text-sm text-muted-foreground">or click to browse / paste from clipboard</p>
-              <Button variant="outline" onClick={(event) => { event.stopPropagation(); loadDemo(); }}>
-                <WandSparklesIcon data-icon="inline-start" />
-                Inspire Me
-              </Button>
             </CardContent>
           </Card>
 
@@ -1881,52 +1735,12 @@ function App() {
                 </TabsList>
 
                 <TabsContent value="source" className="flex flex-col gap-4">
-                  <ControlCard title="Source" description="Upload, paste, or load a tuned demo.">
-                    <div className="grid grid-cols-2 gap-2">
+                  <ControlCard title="Source" description="Upload or paste an image/video source.">
+                    <div className="grid gap-2">
                       <Button onClick={() => fileRef.current?.click()}>
                         <ImageUpIcon data-icon="inline-start" />
                         Upload Image / Video
                       </Button>
-                      <Button variant="outline" onClick={loadDemo}>
-                        <WandSparklesIcon data-icon="inline-start" />
-                        Random Demo
-                      </Button>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between gap-3">
-                        <Label className="text-sm font-medium">Demo gallery</Label>
-                        <Badge variant="outline">{DEMO_PRESETS.length} presets</Badge>
-                      </div>
-                      <div className="grid max-h-48 grid-cols-3 gap-2 overflow-y-auto pr-1">
-                        {DEMO_PRESETS.map((demo) => (
-                          <Button
-                            key={demo.id}
-                            variant={demoSeed === demo.id ? "secondary" : "outline"}
-                            size="sm"
-                            onClick={() => loadDemoPreset(demo.id)}
-                          >
-                            {demo.label}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between gap-3">
-                        <Label className="text-sm font-medium">Video demos</Label>
-                        <Badge variant="outline">{VIDEO_DEMO_PRESETS.length} presets</Badge>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {VIDEO_DEMO_PRESETS.map((demo) => (
-                          <Button
-                            key={demo.id}
-                            variant="outline"
-                            size="sm"
-                            onClick={() => loadVideoDemoPreset(demo.id)}
-                          >
-                            {demo.label}
-                          </Button>
-                        ))}
-                      </div>
                     </div>
                     <Separator />
                     <div className="flex flex-col gap-2">
@@ -2214,7 +2028,7 @@ function App() {
                   <Card id="changelog">
                     <CardHeader>
                       <CardTitle>Changelog</CardTitle>
-                      <CardDescription>Demo gallery, crop editor, masks, lights, animated exports, and post-processing parity are tracked against the public changelog.</CardDescription>
+                      <CardDescription>Background gallery, crop editor, masks, lights, animated exports, and post-processing updates are tracked here.</CardDescription>
                     </CardHeader>
                   </Card>
                 </TabsContent>
@@ -2233,7 +2047,7 @@ function App() {
                 <DialogDescription>Glyph Studio turns images and videos into stylized ASCII art with export-ready controls.</DialogDescription>
               </DialogHeader>
               <div className="flex flex-col gap-3 text-sm text-muted-foreground">
-                <p>Built as a local image-to-ASCII editor with generated demo media, background workflows, and export-ready controls.</p>
+                <p>Built as a local image-to-ASCII editor with upload workflows, background controls, and export-ready controls.</p>
               </div>
             </>
           )}

@@ -11,7 +11,7 @@ describe("Glyph Studio app shell", () => {
     window.history.pushState({}, "", "/");
   });
 
-  it("renders the primary editor controls and can generate a demo", async () => {
+  it("renders the primary editor controls without demo entry points", async () => {
     render(<App />);
 
     expect(screen.getByRole("heading", { name: "Glyph Studio" })).toBeInTheDocument();
@@ -24,21 +24,18 @@ describe("Glyph Studio app shell", () => {
     await userEvent.click(screen.getByRole("tab", { name: "Look" }));
     expect(screen.getByText("Render style")).toBeInTheDocument();
     expect(screen.getByText("Gamma")).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: "Inspire Me" }));
-
-    expect(screen.getByText(/Demo loaded/i)).toBeInTheDocument();
     expect(screen.getByTestId("ascii-canvas")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Inspire Me" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Random Demo" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Demo gallery")).not.toBeInTheDocument();
+    expect(screen.queryByText("Video demos")).not.toBeInTheDocument();
   });
 
-  it("exposes parity controls for galleries, crop, lights, masks, and animated export", async () => {
+  it("exposes parity controls for backgrounds, crop, lights, masks, and animated export", async () => {
     render(<App />);
 
-    expect(screen.getByText("Demo gallery")).toBeInTheDocument();
     expect(screen.getByText("Background gallery")).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: "Demo 02" }));
-    expect(screen.getByText(/Demo 02 loaded/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Demo 02" })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("tab", { name: "Motion" }));
     await userEvent.click(screen.getByRole("button", { name: "Add Light" }));
@@ -53,10 +50,10 @@ describe("Glyph Studio app shell", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
   });
 
-  it("exposes final public parity controls for video demos, timed exports, crop handles, and effect intensity", async () => {
+  it("exposes final public parity controls for timed exports, crop handles, and effect intensity", async () => {
     render(<App />);
 
-    expect(screen.getByText("Video demos")).toBeInTheDocument();
+    expect(screen.queryByText("Video demos")).not.toBeInTheDocument();
     expect(screen.getByText("Animation duration")).toBeInTheDocument();
     expect(screen.getByText("Frame rate")).toBeInTheDocument();
 
@@ -99,10 +96,7 @@ describe("Glyph Studio app shell", () => {
 
     expect(screen.getByText("34 curated backgrounds")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Background 34" })).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: "Video 01" }));
-    expect(screen.getByText(/Video Demo 01 loaded/i)).toBeInTheDocument();
-    expect(screen.getByText("Video source")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Video 01" })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("tab", { name: "Motion" }));
     expect(screen.getByText("0 / 4")).toBeInTheDocument();
