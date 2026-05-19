@@ -233,6 +233,17 @@ export function clamp(value, min, max) {
   return Math.max(min, Math.min(max, Number(value)));
 }
 
+export function resolveBackgroundBlurFrame(width, height, blur = 0) {
+  const pad = Math.max(0, Number(blur || 0)) * 2;
+  const offset = pad === 0 ? 0 : -pad;
+  return {
+    x: offset,
+    y: offset,
+    width: width + pad * 2,
+    height: height + pad * 2
+  };
+}
+
 export function resolvePostProcessingPlan(effects = {}) {
   return POST_PROCESSING_PASS_KEYS
     .filter(([key]) => Boolean(effects[key]))

@@ -5,6 +5,7 @@ import {
   computeAnimationTransform,
   createDefaultSettings,
   luminanceToGlyph,
+  resolveBackgroundBlurFrame,
   resolveCellMetrics,
   resolvePostProcessingPlan
 } from "../src/ascii.js";
@@ -62,6 +63,27 @@ describe("ASCII renderer primitives", () => {
     expect(resolveCellMetrics({ ...createDefaultSettings(), style: "mosaic", tileShape: "wide" }).cellW)
       .toBeGreaterThan(resolveCellMetrics({ ...createDefaultSettings(), style: "mosaic", tileShape: "tall" }).cellW);
     expect(resolveCellMetrics({ ...createDefaultSettings(), style: "3d", cubeCellSize: 20 }).cellW).toBe(20);
+  });
+
+  it("keeps the blurred background expansion centered as blur changes", () => {
+    expect(resolveBackgroundBlurFrame(1100, 720, 0)).toEqual({
+      x: 0,
+      y: 0,
+      width: 1100,
+      height: 720
+    });
+    expect(resolveBackgroundBlurFrame(1100, 720, 8)).toEqual({
+      x: -16,
+      y: -16,
+      width: 1132,
+      height: 752
+    });
+    expect(resolveBackgroundBlurFrame(1100, 720, 60)).toEqual({
+      x: -120,
+      y: -120,
+      width: 1340,
+      height: 960
+    });
   });
 
   it("keeps public animation styles visually distinct", () => {

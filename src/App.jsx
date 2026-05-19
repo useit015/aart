@@ -27,6 +27,7 @@ import {
   clamp,
   computeAnimationTransform,
   createDefaultSettings,
+  resolveBackgroundBlurFrame,
   resolvePostProcessingPlan
 } from "./ascii.js";
 import { Badge } from "@/components/ui/badge";
@@ -1248,10 +1249,12 @@ function App() {
       ctx.save();
       ctx.globalAlpha = settings.backgroundOpacity / 100;
       ctx.filter = `blur(${settings.backgroundBlur}px)`;
+      const blurFrame = resolveBackgroundBlurFrame(width, height, settings.backgroundBlur);
       if (backgroundImage) {
-        ctx.drawImage(backgroundImage, -settings.backgroundBlur * 2, -settings.backgroundBlur * 2, width + settings.backgroundBlur * 4, height + settings.backgroundBlur * 4);
+        ctx.drawImage(backgroundImage, blurFrame.x, blurFrame.y, blurFrame.width, blurFrame.height);
       } else {
-        drawCroppedSource(ctx, source, naturalWidth, naturalHeight, width + settings.backgroundBlur * 4, height + settings.backgroundBlur * 4, crop);
+        ctx.translate(blurFrame.x, blurFrame.y);
+        drawCroppedSource(ctx, source, naturalWidth, naturalHeight, blurFrame.width, blurFrame.height, crop);
       }
       ctx.restore();
     }
