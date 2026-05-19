@@ -607,16 +607,63 @@ tasks:
         - "GoalBuddy state checker: pass"
       summary: "Final audit accepts full user-visible feature parity for the local recreation, with generated local media substituted for proprietary public assets and local analytics capture substituted for external credentials."
       next_task: null
+  - id: T010
+    type: worker
+    assignee: PM
+    status: done
+    reasoning_hint: default
+    objective: "Reopen and harden the completed parity claim against the latest live site refresh and local browser checks."
+    inputs:
+      - "User request on 2026-05-19: exact feature parity with https://www.ascii-magic.com/ and no functional bugs."
+      - "Live site refresh on 2026-05-19."
+      - "Current local app implementation."
+    constraints:
+      - "Keep the existing React/Vite/shadcn architecture."
+      - "Do not copy proprietary public demo/background assets; preserve workflows with generated local substitutes."
+      - "Follow project instruction: always commit in small batches."
+    expected_output:
+      - "Patch any hard functional gaps found in the re-audit."
+      - "Verify with tests, build, diff check, and browser smoke."
+      - "Record final coverage evidence."
+    receipt:
+      result: done
+      full_outcome_complete: true
+      changed_files:
+        - "src/App.jsx"
+        - "src/ascii.js"
+        - "tests/ascii.test.js"
+        - "docs/goals/ascii-magic-parity/state.yaml"
+      implemented:
+        - "Made Edge Emphasis affect cell mapping and kept Brightness/Contrast as color controls."
+        - "Added style-specific cell sizing for mosaic/cube/disco and distinct rendering for block, mixed, cube, and disco styles."
+        - "Matched live cube/disco/light defaults more closely, including cube percent/ratio controls, hidden font size for Cube, and zero default light blur."
+        - "Made generated video-demo presets actually animate through Play/Stop/Seek/Speed instead of only reporting a video-like source."
+        - "Made GIF/video export paths honor selected duration, FPS, and resolution scale instead of silently capping GIF frames or ignoring animated-export scale."
+      verification:
+        - "npm run test: pass (13 tests)"
+        - "npm run build: pass"
+        - "git diff --check: pass"
+        - "Chrome headless browser smoke at http://127.0.0.1:5175/: pass; nonblank canvas, moving video-demo checksums, Video source badge, light/mask controls, Glitch Amount, crop 8 handles, Undo/Redo, zero desktop/mobile horizontal overflow, and no runtime exceptions."
+        - "PNG export smoke: pass; intercepted ascii-magic.png data URL download and Exported PNG at 2x status."
+      coverage_map:
+        source_upload_paste_demo: "Still covered; generated video demos now move frame-to-frame and expose Video source during the source workflow."
+        exports: "Strengthened; PNG export verified in-browser, GIF uses duration*FPS frames, and animated video export records a scaled export canvas."
+        styles_intensity: "Strengthened; edge emphasis, cube/mosaic metrics, block/mixed styles, and brightness/contrast color behavior now map to real renderer behavior."
+        animation_lights_mask_crop: "Still covered; browser smoke verified moving video demo, light add/select, mask affordance, crop handles, Undo, and Redo."
+        responsive: "Still covered; browser smoke verified zero horizontal overflow on desktop and 390x844 mobile."
+      residual_risks:
+        - "Exact public proprietary media assets and external analytics credentials remain intentionally substituted with generated local media and local event capture."
+      summary: "Reopened the completed goal for a source-backed hardening pass, fixed functional parity gaps that were still too label-like, and reverified the local app in tests, build, and a real headless browser."
+      next_task: null
 
 checks:
   dirty_fingerprint: unknown
   last_verification:
     result: pass
-    task: T009
+    task: T010
     commands:
-      - "npm run test -- tests/app.test.jsx"
       - "npm run test"
       - "npm run build"
       - "git diff --check"
-      - "Browser smoke check at http://127.0.0.1:5174/"
-      - "GoalBuddy state checker"
+      - "Chrome headless browser smoke at http://127.0.0.1:5175/"
+      - "PNG export smoke"

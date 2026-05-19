@@ -361,6 +361,34 @@ function drawCroppedSource(ctx, source, sourceWidth, sourceHeight, width, height
   ctx.restore();
 }
 
+function drawVideoDemoMotion(ctx, width, height, seed, timeSeconds) {
+  const time = Number(timeSeconds || 0);
+  const hue = (seed * 31 + time * 48) % 360;
+  const sweep = (time % 6) / 6;
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  const beam = ctx.createLinearGradient(width * (sweep - 0.35), 0, width * (sweep + 0.45), height);
+  beam.addColorStop(0, "rgba(255,255,255,0)");
+  beam.addColorStop(0.5, `hsla(${hue}, 95%, 68%, .62)`);
+  beam.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = beam;
+  ctx.fillRect(0, 0, width, height);
+
+  for (let i = 0; i < 10; i += 1) {
+    const x = ((i * 0.137 + time * (0.035 + i * 0.002) + seed * 0.019) % 1) * width;
+    const y = (0.18 + ((i * 0.113 + Math.sin(time * 0.8 + i) * 0.08 + seed * 0.011) % 0.68)) * height;
+    const radius = Math.max(22, Math.min(width, height) * (0.035 + ((i + seed) % 4) * 0.012));
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, radius * 3);
+    glow.addColorStop(0, `hsla(${(hue + i * 34) % 360}, 100%, 72%, .72)`);
+    glow.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, radius * 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 function drawMaskGeometry(ctx, width, height, strokes, mode = "fill") {
   const drawDefault = () => {
     ctx.beginPath();
@@ -419,6 +447,16 @@ function drawMaskGeometry(ctx, width, height, strokes, mode = "fill") {
 
 async function nextAnimationFrame() {
   await new Promise((resolve) => requestAnimationFrame(resolve));
+}
+
+function cloneCanvasAtScale(canvas, scale = 1) {
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = Math.max(1, Math.round(canvas.width * scale));
+  exportCanvas.height = Math.max(1, Math.round(canvas.height * scale));
+  const exportCtx = exportCanvas.getContext("2d");
+  exportCtx.imageSmoothingEnabled = false;
+  exportCtx.drawImage(canvas, 0, 0, exportCanvas.width, exportCanvas.height);
+  return exportCanvas;
 }
 
 function SelectControl({ label, value, onChange, options }) {
@@ -722,6 +760,33 @@ function drawStyledCell(ctx, cell, settings, tick, width, height) {
     ctx.lineTo(cell.x, centerY);
     ctx.closePath();
     ctx.stroke();
+  } else if (settings.style === "block-chars") {
+    const blocks = "█▓▒░ ";
+    const block = blocks[Math.min(blocks.length - 1, Math.round((cell.luminance / 255) * (blocks.length - 1)))] || "█";
+    ctx.font = `${settings.fontSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+    ctx.fillText(block, cell.x, cell.y + cell.h);
+  } else if (settings.style === "mixed") {
+    const variant = Math.abs(Math.floor(cell.x * 17 + cell.y * 31 + cell.luminance)) % 4;
+    if (variant === 0) {
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, Math.max(1, cell.w * 0.28), 0, Math.PI * 2);
+      ctx.fill();
+    } else if (variant === 1) {
+      ctx.beginPath();
+      ctx.moveTo(cell.x, cell.y + cell.h);
+      ctx.lineTo(cell.x + cell.w, cell.y);
+      ctx.stroke();
+    } else if (variant === 2) {
+      ctx.strokeRect(cell.x, cell.y, cell.w * 0.82, cell.h * 0.82);
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(centerX, cell.y);
+      ctx.lineTo(cell.x + cell.w, centerY);
+      ctx.lineTo(centerX, cell.y + cell.h);
+      ctx.lineTo(cell.x, centerY);
+      ctx.closePath();
+      ctx.stroke();
+    }
   } else if (["pixel", "lego", "mosaic"].includes(settings.style)) {
     ctx.beginPath();
     ctx.roundRect(cell.x, cell.y, cell.w * 0.92, cell.h * 0.92, settings.style === "lego" ? 3 : 0);
@@ -736,26 +801,59 @@ function drawStyledCell(ctx, cell, settings, tick, width, height) {
     ctx.font = `${settings.fontSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
     ctx.fillText("⣿⣶⣤⡀"[Math.round((1 - cell.luminance / 255) * 5)] || "⠂", cell.x, cell.y + cell.h);
   } else if (settings.style === "3d") {
-    const insetX = settings.cubeHSpacing / 8;
-    const insetY = settings.cubeVSpacing / 8;
-    ctx.fillRect(cell.x + 2 + insetX, cell.y + 4 + insetY, cell.w * 0.72, cell.h * 0.62);
-    ctx.fillStyle = `rgba(255,255,255,${settings.cubeTopShade / 160})`;
-    ctx.fillRect(cell.x + insetX, cell.y + 1 + insetY, cell.w * 0.72, 4);
-    ctx.fillStyle = `rgba(255,255,255,${settings.cubeLightSide / 220})`;
-    ctx.fillRect(settings.cubeFlipLight ? cell.x + insetX : cell.x + cell.w * 0.62, cell.y + 5 + insetY, 4, cell.h * 0.55);
-    ctx.fillStyle = `rgba(0,0,0,${settings.cubeDarkSide / 150})`;
-    ctx.fillRect(settings.cubeFlipLight ? cell.x + cell.w * 0.62 : cell.x + insetX, cell.y + cell.h * 0.56, cell.w * 0.65, 3);
-    if (settings.cubeOutline) {
+    const topShade = Number(settings.cubeTopShade || 1.35);
+    const lightSide = Number(settings.cubeLightSide || 1);
+    const darkSide = Number(settings.cubeDarkSide || 0.55);
+    const outline = Number(settings.cubeOutline || 0);
+    const shade = (alpha) => `rgba(255,255,255,${Math.max(0, Math.min(0.88, alpha))})`;
+    const shadow = (alpha) => `rgba(0,0,0,${Math.max(0, Math.min(0.82, alpha))})`;
+    ctx.beginPath();
+    ctx.moveTo(centerX, cell.y);
+    ctx.lineTo(cell.x + cell.w, cell.y + cell.h * 0.28);
+    ctx.lineTo(centerX, cell.y + cell.h * 0.58);
+    ctx.lineTo(cell.x, cell.y + cell.h * 0.28);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = shade((topShade - 1) * 0.36);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(settings.cubeFlipLight ? cell.x : cell.x + cell.w, cell.y + cell.h * 0.28);
+    ctx.lineTo(centerX, cell.y + cell.h * 0.58);
+    ctx.lineTo(centerX, cell.y + cell.h);
+    ctx.lineTo(settings.cubeFlipLight ? cell.x : cell.x + cell.w, cell.y + cell.h * 0.7);
+    ctx.closePath();
+    ctx.fillStyle = shade(lightSide * 0.18);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(settings.cubeFlipLight ? cell.x + cell.w : cell.x, cell.y + cell.h * 0.28);
+    ctx.lineTo(centerX, cell.y + cell.h * 0.58);
+    ctx.lineTo(centerX, cell.y + cell.h);
+    ctx.lineTo(settings.cubeFlipLight ? cell.x + cell.w : cell.x, cell.y + cell.h * 0.7);
+    ctx.closePath();
+    ctx.fillStyle = shadow((1 - darkSide) * 0.36);
+    ctx.fill();
+    if (outline > 0) {
       ctx.strokeStyle = "rgba(255,255,255,.22)";
-      ctx.strokeRect(cell.x + insetX, cell.y + insetY, cell.w * 0.76, cell.h * 0.72);
+      ctx.lineWidth = outline;
+      ctx.strokeRect(cell.x, cell.y, cell.w, cell.h);
     }
   } else if (settings.style === "disco") {
     const randomOffset = settings.discoRandomize ? (cell.x * 3 + cell.y * 5 + (settings.discoSeed || 0) * 97) : 0;
     const hue = (randomOffset + (cell.x + cell.y) * (settings.discoUniformity / 120) + tick * 0.04) % 360;
-    ctx.fillStyle = `hsl(${hue}, 95%, ${45 + (1 - cell.luminance / 255) * 35}%)`;
+    const gradient = ctx.createLinearGradient(cell.x, cell.y, cell.x, cell.y + cell.h);
+    gradient.addColorStop(0, `hsl(${hue}, 95%, ${68 + (1 - cell.luminance / 255) * 18}%)`);
+    gradient.addColorStop(0.54, `hsl(${(hue + 22) % 360}, 82%, ${42 + (1 - cell.luminance / 255) * 24}%)`);
+    gradient.addColorStop(1, `hsl(${(hue + 50) % 360}, 74%, ${24 + (1 - cell.luminance / 255) * 18}%)`);
+    ctx.fillStyle = gradient;
     ctx.beginPath();
-    ctx.arc(centerX, centerY, Math.max(2, cell.w * 0.42), 0, Math.PI * 2);
+    ctx.moveTo(centerX, cell.y);
+    ctx.lineTo(cell.x + cell.w, centerY);
+    ctx.lineTo(centerX, cell.y + cell.h);
+    ctx.lineTo(cell.x, centerY);
+    ctx.closePath();
     ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,.24)";
+    ctx.stroke();
   } else {
     ctx.font = `${settings.fontSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
     const glyph = settings.randomize ? pickRandomGlyph(cell, settings) : cell.glyph;
@@ -882,6 +980,9 @@ function App() {
     setDemoSeed(seed);
     setMaskStrokes([]);
     setCrop({ x: 0, y: 0, w: 1, h: 1, rotation: 0 });
+    setDuration(8);
+    setSeek(0);
+    setIsPlaying(true);
     setSettings((current) => ({ ...current, animated: true, animationStyle: id === 1 ? "wave" : id === 2 ? "cascade-lr" : "pulse" }));
     loadSource(createDemoDataUrl(seed), `Video Demo ${String(id).padStart(2, "0")}`, "video-demo");
   }, [loadSource]);
@@ -926,7 +1027,7 @@ function App() {
       y: point.y,
       radius: 30,
       intensity: 80,
-      blur: 20,
+      blur: 0,
       rotation: 0
     };
     setLights((current) => [...current, nextLight]);
@@ -1126,6 +1227,9 @@ function App() {
     const sourceCtx = offscreen.getContext("2d", { willReadFrequently: true });
     if (!sourceCtx) return;
     drawCroppedSource(sourceCtx, source, naturalWidth, naturalHeight, width, height, crop);
+    if (sourceKind === "video-demo") {
+      drawVideoDemoMotion(sourceCtx, width, height, demoSeed, seek);
+    }
 
     const backgroundImage = backgroundImageRef.current;
 
@@ -1215,7 +1319,7 @@ function App() {
     }
 
     applyImageEffects(ctx, width, height, settings, tick);
-  }, [activeLightId, crop, lights, maskStrokes, settings, sourceKind]);
+  }, [activeLightId, crop, demoSeed, lights, maskStrokes, seek, settings, sourceKind]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -1242,16 +1346,35 @@ function App() {
     image.crossOrigin = "anonymous";
     image.onload = () => {
       sourceImageRef.current = image;
+      const demoDuration = sourceKind === "video-demo" ? 8 : null;
+      if (demoDuration) setDuration(demoDuration);
       setSourceStats({
         width: image.naturalWidth,
         height: image.naturalHeight,
-        duration: null
+        duration: demoDuration
       });
       draw();
     };
     image.src = sourceUrl;
     return undefined;
   }, [draw, sourceKind, sourceUrl]);
+
+  useEffect(() => {
+    if (!isPlaying || sourceKind !== "video-demo") return undefined;
+    let frame = 0;
+    let lastTime = performance.now();
+    const advance = (time) => {
+      const delta = ((time - lastTime) / 1000) * playbackRate;
+      lastTime = time;
+      setSeek((current) => {
+        const next = current + delta;
+        return next >= duration ? next % duration : next;
+      });
+      frame = requestAnimationFrame(advance);
+    };
+    frame = requestAnimationFrame(advance);
+    return () => cancelAnimationFrame(frame);
+  }, [duration, isPlaying, playbackRate, sourceKind]);
 
   useEffect(() => {
     if (!backgroundUrl) {
@@ -1286,18 +1409,18 @@ function App() {
     setExporting(true);
     const gif = GIFEncoder();
     const frameCanvas = document.createElement("canvas");
-    const maxWidth = 520;
+    const maxWidth = 520 * Number(settings.exportScale || 1);
     const scale = Math.min(1, maxWidth / Math.max(1, canvas.width));
     frameCanvas.width = Math.max(1, Math.round(canvas.width * scale));
     frameCanvas.height = Math.max(1, Math.round(canvas.height * scale));
     const frameCtx = frameCanvas.getContext("2d", { willReadFrequently: true });
     if (!frameCtx) throw new Error("GIF canvas unavailable");
 
-    const frameTotal = Math.min(72, Math.max(2, Math.round(settings.exportDuration * settings.exportFps)));
+    const frameTotal = Math.max(2, Math.round(settings.exportDuration * settings.exportFps));
     const delay = Math.round(1000 / settings.exportFps);
     for (let frame = 0; frame < frameTotal; frame += 1) {
       setStatus(`Exporting GIF... ${Math.round((frame / frameTotal) * 100)}%`);
-      draw(performance.now() + frame * 180);
+      draw(performance.now() + frame * delay);
       await nextAnimationFrame();
       frameCtx.clearRect(0, 0, frameCanvas.width, frameCanvas.height);
       frameCtx.drawImage(canvas, 0, 0, frameCanvas.width, frameCanvas.height);
@@ -1309,9 +1432,9 @@ function App() {
 
     gif.finish();
     downloadBlob(new Blob([gif.bytes()], { type: "image/gif" }), "ascii-magic.gif");
-    setStatus("Exported GIF animation");
+    setStatus(`Exported GIF animation (${settings.exportDuration}s @ ${settings.exportFps}fps)`);
     setExporting(false);
-  }, [draw, settings.exportDuration, settings.exportFps]);
+  }, [draw, settings.exportDuration, settings.exportFps, settings.exportScale]);
 
   const exportRecordedVideo = useCallback(async (canvas, format) => {
     if (!canvas.captureStream || typeof MediaRecorder === "undefined") {
@@ -1338,7 +1461,10 @@ function App() {
     setExporting(true);
     setStatus("Recording animation... 0%");
     const durationMs = settings.exportDuration * 1000;
-    const stream = canvas.captureStream(settings.exportFps);
+    const recordCanvas = cloneCanvasAtScale(canvas, settings.exportScale);
+    const recordCtx = recordCanvas.getContext("2d");
+    if (!recordCtx) throw new Error("Video export canvas unavailable");
+    const stream = recordCanvas.captureStream(settings.exportFps);
     const chunks = [];
     const recorder = new MediaRecorder(stream, { mimeType });
     recorder.ondataavailable = (event) => {
@@ -1351,6 +1477,9 @@ function App() {
     const startedAt = performance.now();
     const renderLoop = (time) => {
       draw(time);
+      recordCtx.imageSmoothingEnabled = false;
+      recordCtx.clearRect(0, 0, recordCanvas.width, recordCanvas.height);
+      recordCtx.drawImage(canvas, 0, 0, recordCanvas.width, recordCanvas.height);
       setStatus(`Recording animation... ${Math.min(99, Math.round(((time - startedAt) / durationMs) * 100))}%`);
       if (time - startedAt < durationMs) requestAnimationFrame(renderLoop);
     };
@@ -1367,7 +1496,7 @@ function App() {
         : "MP4 unavailable; exported WebM fallback"
     );
     setExporting(false);
-  }, [draw, settings.exportDuration, settings.exportFps]);
+  }, [draw, settings.exportDuration, settings.exportFps, settings.exportScale]);
 
   const exportCanvas = useCallback(async () => {
     const canvas = canvasRef.current;
@@ -1388,12 +1517,7 @@ function App() {
       setStatus(error instanceof Error ? error.message : "Export failed");
       return;
     }
-    const exportCanvasEl = document.createElement("canvas");
-    exportCanvasEl.width = canvas.width * settings.exportScale;
-    exportCanvasEl.height = canvas.height * settings.exportScale;
-    const exportCtx = exportCanvasEl.getContext("2d");
-    exportCtx.imageSmoothingEnabled = false;
-    exportCtx.drawImage(canvas, 0, 0, exportCanvasEl.width, exportCanvasEl.height);
+    const exportCanvasEl = cloneCanvasAtScale(canvas, settings.exportScale);
     const mime = format === "jpg" ? "image/jpeg" : "image/png";
     const link = document.createElement("a");
     link.href = exportCanvasEl.toDataURL(mime, 0.92);
@@ -1418,7 +1542,11 @@ function App() {
 
   const stopVideo = useCallback(() => {
     const video = videoRef.current;
-    video?.pause();
+    if (video) {
+      video.pause();
+      video.currentTime = 0;
+    }
+    setSeek(0);
     setIsPlaying(false);
     setStatus("Playback stopped");
     draw();
@@ -1768,12 +1896,12 @@ function App() {
                       <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3">
                         <Label className="text-sm font-medium">Cube controls</Label>
                         <RangeControl label="Cell Size" min={4} max={60} value={settings.cubeCellSize} onChange={(value) => updateSetting("cubeCellSize", value)} />
-                        <RangeControl label="H. Spacing" min={0} max={24} value={settings.cubeHSpacing} onChange={(value) => updateSetting("cubeHSpacing", value)} />
-                        <RangeControl label="V. Spacing" min={0} max={24} value={settings.cubeVSpacing} onChange={(value) => updateSetting("cubeVSpacing", value)} />
-                        <RangeControl label="Top Shade" min={0} max={100} value={settings.cubeTopShade} suffix="%" onChange={(value) => updateSetting("cubeTopShade", value)} />
-                        <RangeControl label="Light Side" min={0} max={100} value={settings.cubeLightSide} suffix="%" onChange={(value) => updateSetting("cubeLightSide", value)} />
-                        <RangeControl label="Dark Side" min={0} max={100} value={settings.cubeDarkSide} suffix="%" onChange={(value) => updateSetting("cubeDarkSide", value)} />
-                        <ToggleControl label="Outline" checked={settings.cubeOutline} onChange={(value) => updateSetting("cubeOutline", value)} />
+                        <RangeControl label="H. Spacing" min={50} max={180} value={settings.cubeHSpacing} suffix="%" onChange={(value) => updateSetting("cubeHSpacing", value)} />
+                        <RangeControl label="V. Spacing" min={50} max={180} value={settings.cubeVSpacing} suffix="%" onChange={(value) => updateSetting("cubeVSpacing", value)} />
+                        <RangeControl label="Top Shade" min={0.5} max={2} step={0.05} value={settings.cubeTopShade} onChange={(value) => updateSetting("cubeTopShade", value)} />
+                        <RangeControl label="Light Side" min={0} max={2} step={0.05} value={settings.cubeLightSide} onChange={(value) => updateSetting("cubeLightSide", value)} />
+                        <RangeControl label="Dark Side" min={0} max={1} step={0.05} value={settings.cubeDarkSide} onChange={(value) => updateSetting("cubeDarkSide", value)} />
+                        <RangeControl label="Outline" min={0} max={8} value={settings.cubeOutline} onChange={(value) => updateSetting("cubeOutline", value)} />
                         <ToggleControl label="Flip Light" checked={settings.cubeFlipLight} onChange={(value) => updateSetting("cubeFlipLight", value)} />
                       </div>
                     )}
@@ -1801,7 +1929,9 @@ function App() {
                         </div>
                       </div>
                     )}
-                    <RangeControl label="Font Size" min={3} max={48} value={settings.fontSize} onChange={(value) => updateSetting("fontSize", value)} />
+                    {settings.style !== "3d" ? (
+                      <RangeControl label="Font Size" min={3} max={48} value={settings.fontSize} onChange={(value) => updateSetting("fontSize", value)} />
+                    ) : null}
                     <SelectControl label="Character Set" value={settings.characterSet} onChange={(value) => setSettings((current) => ({ ...current, characterSet: value, characters: value === "custom" ? current.characters : CHAR_SETS[value] }))} options={[["standard", "Standard"], ["detailed", "Detailed"], ["minimal", "Minimal"], ["custom", "Custom"]]} />
                     <div className="flex flex-col gap-1.5">
                       <Label className="text-xs text-muted-foreground">Chars</Label>
@@ -1835,7 +1965,7 @@ function App() {
                   <ControlCard title="Animation" description="Animated ASCII timing and reveal styles.">
                     <ToggleControl label="Animated ASCII" checked={settings.animated} onChange={(value) => updateSetting("animated", value)} />
                     <SelectControl label="Animation Style" value={settings.animationStyle} onChange={(value) => updateSetting("animationStyle", value)} options={[["wave", "Wave"], ["cascade-lr", "Cascade Left to Right"], ["cascade-rl", "Cascade Right to Left"], ["cascade-tb", "Cascade Top to Bottom"], ["reveal", "Reveal"], ["pulse", "Pulse"]]} />
-                    <RangeControl label="Speed" min={1000} max={8000} step={100} value={settings.animationSpeed} suffix="ms" onChange={(value) => updateSetting("animationSpeed", value)} />
+                    <RangeControl label="Speed" min={1} max={8} step={0.1} value={Number((settings.animationSpeed / 1000).toFixed(1))} suffix="s" onChange={(value) => updateSetting("animationSpeed", value * 1000)} />
                     <RangeControl label="Intensity" min={0} max={100} value={settings.animationIntensity} suffix="%" onChange={(value) => updateSetting("animationIntensity", value)} />
                     <RangeControl label="Randomness" min={0} max={100} value={settings.animationRandomness} suffix="%" onChange={(value) => updateSetting("animationRandomness", value)} />
                   </ControlCard>

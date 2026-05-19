@@ -51,15 +51,15 @@ export function createDefaultSettings() {
     backgroundOpacity: 90,
     style: "characters",
     tileShape: "square",
-    cubeCellSize: 16,
-    cubeHSpacing: 4,
-    cubeVSpacing: 4,
-    cubeTopShade: 74,
-    cubeLightSide: 62,
-    cubeDarkSide: 36,
-    cubeOutline: true,
+    cubeCellSize: 12,
+    cubeHSpacing: 100,
+    cubeVSpacing: 100,
+    cubeTopShade: 1.35,
+    cubeLightSide: 1,
+    cubeDarkSide: 0.55,
+    cubeOutline: 0,
     cubeFlipLight: false,
-    discoUniformity: 68,
+    discoUniformity: 80,
     discoRandomize: true,
     discoSeed: 0,
     fontSize: 11,
@@ -141,20 +141,57 @@ export function luminanceToGlyph(luminance, settings = createDefaultSettings()) 
 }
 
 export function adjustLuminance(r, g, b, settings) {
+  const weighted = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return Math.max(0, Math.min(255, weighted));
+}
+
+export function adjustColorChannel(value, settings) {
   const brightness = Number(settings.brightness || 0);
   const contrast = Number(settings.contrast || 100) / 100;
-  const weighted = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  const contrasted = (weighted - 128) * contrast + 128 + brightness;
-  return Math.max(0, Math.min(255, contrasted));
+  return Math.max(0, Math.min(255, Math.round((value - 128) * contrast + 128 + brightness)));
+}
+
+export function resolveCellMetrics(settings) {
+  const fontSize = Number(settings.fontSize || 11);
+  if (settings.style === "3d") {
+    const cellSize = Number(settings.cubeCellSize || 12);
+    return {
+      cellW: Math.max(4, Math.round(cellSize * (Number(settings.cubeHSpacing || 100) / 100))),
+      cellH: Math.max(4, Math.round(cellSize * 0.88 * (Number(settings.cubeVSpacing || 100) / 100)))
+    };
+  }
+
+  if (settings.style === "mosaic") {
+    const shape = settings.tileShape || "square";
+    return {
+      cellW: Math.max(3, Math.round(fontSize * (shape === "wide" ? 1.25 : shape === "tall" ? 0.58 : 0.82))),
+      cellH: Math.max(5, Math.round(fontSize * (shape === "wide" ? 0.72 : shape === "tall" ? 1.34 : 0.94)))
+    };
+  }
+
+  if (["pixel", "lego", "disco"].includes(settings.style)) {
+    return {
+      cellW: Math.max(4, Math.round(fontSize * 0.95)),
+      cellH: Math.max(4, Math.round(fontSize * 0.95))
+    };
+  }
+
+  return {
+    cellW: Math.max(3, Math.round(fontSize * 0.62)),
+    cellH: Math.max(5, Math.round(fontSize * 1.02))
+  };
 }
 
 export function buildAsciiCells(imageData, width, height, settings = createDefaultSettings()) {
-  const fontSize = Number(settings.fontSize || 11);
-  const cellW = Math.max(3, Math.round(fontSize * 0.62));
-  const cellH = Math.max(5, Math.round(fontSize * 1.02));
+  const { cellW, cellH } = resolveCellMetrics(settings);
   const coverage = Number(settings.coverage || 100) / 100;
   const density = Number(settings.density || 0) / 100;
+  const edgeEmphasis = Number(settings.edgeEmphasis || 0) / 100;
   const cells = [];
+  const sampleLuminance = (sampleX, sampleY) => {
+    const i = (sampleY * width + sampleX) * 4;
+    return adjustLuminance(imageData.data[i] ?? 0, imageData.data[i + 1] ?? 0, imageData.data[i + 2] ?? 0, settings);
+  };
 
   for (let y = 0; y < height; y += cellH) {
     for (let x = 0; x < width; x += cellW) {
@@ -165,8 +202,15 @@ export function buildAsciiCells(imageData, width, height, settings = createDefau
       const g = imageData.data[i + 1] ?? 0;
       const b = imageData.data[i + 2] ?? 0;
       const a = imageData.data[i + 3] ?? 255;
-      const luminance = adjustLuminance(r, g, b, settings);
+      const rawLuminance = adjustLuminance(r, g, b, settings);
+      const edgeX = Math.abs(rawLuminance - sampleLuminance(Math.min(width - 1, sampleX + cellW), sampleY));
+      const edgeY = Math.abs(rawLuminance - sampleLuminance(sampleX, Math.min(height - 1, sampleY + cellH)));
+      const edgeBoost = Math.max(edgeX, edgeY) * edgeEmphasis;
+      const luminance = Math.max(0, Math.min(255, rawLuminance - edgeBoost));
       const threshold = 255 * (1 - coverage) + density * 45;
+      const adjustedR = adjustColorChannel(r, settings);
+      const adjustedG = adjustColorChannel(g, settings);
+      const adjustedB = adjustColorChannel(b, settings);
 
       if (a > 8 && luminance <= 255 - threshold) {
         cells.push({
@@ -175,7 +219,7 @@ export function buildAsciiCells(imageData, width, height, settings = createDefau
           w: cellW,
           h: cellH,
           luminance,
-          color: `rgb(${r}, ${g}, ${b})`,
+          color: `rgb(${adjustedR}, ${adjustedG}, ${adjustedB})`,
           glyph: luminanceToGlyph(luminance, settings)
         });
       }

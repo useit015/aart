@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   CHAR_SETS,
+  buildAsciiCells,
   computeAnimationTransform,
   createDefaultSettings,
   luminanceToGlyph,
+  resolveCellMetrics,
   resolvePostProcessingPlan
 } from "../src/ascii.js";
 
@@ -27,6 +29,39 @@ describe("ASCII renderer primitives", () => {
 
     expect(luminanceToGlyph(0, settings)).toBe("C");
     expect(luminanceToGlyph(255, settings)).toBe("A");
+  });
+
+  it("keeps brightness and contrast as color controls while edge emphasis affects cell mapping", () => {
+    const width = 6;
+    const height = 6;
+    const data = new Uint8ClampedArray(width * height * 4).fill(255);
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const index = (y * width + x) * 4;
+        const value = x < 3 ? 24 : 232;
+        data[index] = value;
+        data[index + 1] = value;
+        data[index + 2] = value;
+      }
+    }
+
+    const cells = buildAsciiCells({ data }, width, height, {
+      ...createDefaultSettings(),
+      fontSize: 3,
+      coverage: 100,
+      edgeEmphasis: 100,
+      brightness: 40,
+      contrast: 140
+    });
+
+    expect(cells.some((cell) => cell.luminance < 24)).toBe(true);
+    expect(cells[0].color).not.toBe("rgb(24, 24, 24)");
+  });
+
+  it("uses style-specific cell metrics for mosaic and cube controls", () => {
+    expect(resolveCellMetrics({ ...createDefaultSettings(), style: "mosaic", tileShape: "wide" }).cellW)
+      .toBeGreaterThan(resolveCellMetrics({ ...createDefaultSettings(), style: "mosaic", tileShape: "tall" }).cellW);
+    expect(resolveCellMetrics({ ...createDefaultSettings(), style: "3d", cubeCellSize: 20 }).cellW).toBe(20);
   });
 
   it("keeps public animation styles visually distinct", () => {
