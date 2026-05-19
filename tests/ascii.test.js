@@ -115,6 +115,8 @@ describe("ASCII renderer primitives", () => {
     expect(correctedRows(1920, 1080, 144)).toBe(45);
     expect(correctedRows(1080, 1920, 96)).toBe(95);
     expect(correctedRows(0, 1920, 96)).toBe(1);
+    expect(correctedRows(1920, 1080, Number.NaN)).toBe(1);
+    expect(correctedRows(Number.POSITIVE_INFINITY, 1080, 96)).toBe(1);
   });
 
   it("matches locked luminance and rgb565 packing values", () => {

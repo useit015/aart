@@ -280,8 +280,23 @@ export function adjustLuminance(r, g, b, settings) {
 }
 
 export function correctedRows(sourceWidth, sourceHeight, cols, cellAspect = DEFAULT_CELL_ASPECT) {
-  if (sourceWidth <= 0 || sourceHeight <= 0 || cols <= 0 || cellAspect <= 0) return 1;
-  return Math.max(1, roundTiesToEven((sourceHeight / sourceWidth) * cols / cellAspect));
+  const safeWidth = Number(sourceWidth);
+  const safeHeight = Number(sourceHeight);
+  const safeCols = Number(cols);
+  const safeCellAspect = Number(cellAspect);
+  if (
+    !Number.isFinite(safeWidth)
+    || !Number.isFinite(safeHeight)
+    || !Number.isFinite(safeCols)
+    || !Number.isFinite(safeCellAspect)
+    || safeWidth <= 0
+    || safeHeight <= 0
+    || safeCols <= 0
+    || safeCellAspect <= 0
+  ) {
+    return 1;
+  }
+  return Math.max(1, roundTiesToEven((safeHeight / safeWidth) * safeCols / safeCellAspect));
 }
 
 export function rgbToLuminance(red, green, blue) {
