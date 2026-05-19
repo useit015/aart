@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-> **Follow-up UX note:** Palette Mode was removed after implementation because it added a confusing parallel control. The current product surface uses **Detail** for sampled grid density and **Glyph Set** for character ramps. Historical palette-related steps below are obsolete and must not be reintroduced from this plan.
+> **Follow-up UX note:** Palette Mode, the separate Detail section, and the separate Glyph Set button group were removed after implementation because they added confusing parallel controls. The current product surface uses existing **Quality Presets** for sampled grid density and existing **Character Set** for character ramps. Historical palette/detail/glyph-set steps below are obsolete and must not be reintroduced from this plan.
 
 **Goal:** Implement the Sigil-inspired still-image quality engine with sampled grids, corrected aspect rows, improved tone/charset controls, cached redraws, tests, verification, and small-batch commits.
 

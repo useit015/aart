@@ -2,7 +2,7 @@
 
 ## Goal
 
-Improve still-image ASCII output quality by borrowing the best-fitting ideas from `~/workspace/sigil`: a source-aware sampled grid, corrected aspect rows, cleaner tone decoding, richer glyph presets, and a redraw path that can reuse sampled data for visual tuning.
+Improve still-image ASCII output quality by borrowing the best-fitting ideas from `~/workspace/sigil`: a source-aware sampled grid, corrected aspect rows, cleaner tone decoding, and a redraw path that can reuse sampled data for visual tuning.
 
 This design intentionally targets still images first. Uploaded video playback and export behavior stay on the current rendering path until a later video-specific upgrade.
 
@@ -10,8 +10,8 @@ This design intentionally targets still images first. Uploaded video playback an
 
 Users should get sharper, cleaner still-image output with fewer muddy midtones, better aspect preservation, and more polished color looks. The controls should make the quality model clear:
 
-- Grid quality changes how much source detail is sampled.
-- Glyph set, tone, and gamma change how the sampled grid is decoded and rendered.
+- Quality Presets change how much source detail is sampled.
+- Character Set, tone, and gamma change how the sampled grid is decoded and rendered.
 - Manual tuning remains available without breaking upload, background, crop, mask, light, animation, or export workflows.
 
 ## Source Ideas From Sigil
@@ -21,7 +21,6 @@ Useful Sigil concepts:
 - Conversion quality presets based on grid columns (`tiny`, `light`, `balanced`, `sharp`, `ultra`).
 - Corrected row calculation from source aspect ratio and cell aspect.
 - Separate sampled source data from decode-time look controls.
-- Charset presets beyond one default ramp.
 - Tone curve order: brightness, contrast, gamma, invert.
 - Compact stored per-cell color/luma data that can be redrawn without re-reading source pixels.
 
@@ -50,7 +49,7 @@ The app will add a two-stage still-image path:
 2. **Decode stage**
    - Apply tone controls in this order: brightness, contrast, gamma, invert.
    - Apply coverage, density, and edge emphasis.
-   - Map toned luminance to glyphs through the active glyph set.
+   - Map toned luminance to glyphs through the active character set.
    - Resolve color from sampled RGB.
 
 3. **Render stage**
@@ -61,31 +60,22 @@ The visible canvas can remain the current fixed preview/export canvas size. The 
 
 ## Controls
 
-Add a compact **Detail** section in the Look tab.
+Merge sampled grid density into the existing **Quality Presets** section in the Look tab.
 
-### Grid Quality
+### Quality Presets
 
 Presets:
 
 - Soft: lower grid density, calmer output.
 - Balanced: default, readable and fast.
 - Detailed: sharper still images.
-- Ultra: highest still-image detail, with a clear performance note in status copy if needed.
+- Poster: high-contrast lower-ramp output.
 
-Grid quality updates sampled grid density. Existing quality presets can continue to set font size, coverage, edge, density, contrast, and gamma, but this new grid setting becomes the primary detail control.
+Quality presets update sampled grid density, font size, character set, coverage, edge, density, contrast, and gamma together. This keeps one obvious quality control instead of a separate detail surface.
 
-### Glyph Set
+### Character Set
 
-Presets:
-
-- Standard
-- Detailed
-- Blocks
-- Dots
-- Geometric
-- Custom
-
-Selecting a charset preset updates the character ramp and marks the active quality preset as custom when it diverges from a preset.
+Keep the existing Character Set select and custom Chars input. Do not add a second glyph preset button group.
 
 ### Tone
 
@@ -117,13 +107,13 @@ Rebuild the sampled grid when any of these change:
 
 - source image
 - crop rectangle or rotation
-- output grid quality
+- quality preset grid density
 - source canvas dimensions
 - pre-sampling light contribution, if lights are applied before sampling
 
 Do not rebuild the sampled grid for:
 
-- charset
+- character set
 - brightness/contrast/gamma/invert
 - coverage/density/edge emphasis
 - background mode
@@ -151,9 +141,8 @@ Unit tests in `tests/ascii.test.js`:
 
 App tests in `tests/app.test.jsx`:
 
-- Detail controls appear in the Look tab.
-- Grid quality buttons update active state.
-- Glyph set selection updates the Chars input.
+- Quality Presets remain the only quality preset surface.
+- Character Set remains the only character-ramp surface.
 - Upload/video controls remain present and demo controls remain absent.
 
 Verification:

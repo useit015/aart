@@ -11,19 +11,10 @@ export const GRID_QUALITY_PRESETS = {
   ultra: { label: "Ultra", columns: 240, fontSize: 7 }
 };
 
-export const GRID_QUALITY_ORDER = ["soft", "balanced", "detailed", "ultra"];
-
-export const CHARSET_PRESETS = [
-  { id: "standard", label: "Standard", value: CHAR_SETS.standard },
-  { id: "detailed", label: "Detailed", value: CHAR_SETS.detailed },
-  { id: "blocks", label: "Blocks", value: " ░▒▓█" },
-  { id: "dots", label: "Dots", value: " .·•●" },
-  { id: "geometric", label: "Geometric", value: " ▏▎▍▌▋▊▉█" }
-];
-
 const DEFAULT_CELL_ASPECT = 1.8;
 
 export const QUALITY_PRESET_SETTING_KEYS = [
+  "gridColumns",
   "fontSize",
   "characterSet",
   "characters",
@@ -41,6 +32,7 @@ export const QUALITY_PRESETS = {
   soft: {
     label: "Soft",
     settings: {
+      gridColumns: GRID_QUALITY_PRESETS.soft.columns,
       fontSize: 14,
       characterSet: "standard",
       characters: CHAR_SETS.standard,
@@ -55,6 +47,7 @@ export const QUALITY_PRESETS = {
   balanced: {
     label: "Balanced",
     settings: {
+      gridColumns: GRID_QUALITY_PRESETS.balanced.columns,
       fontSize: 11,
       characterSet: "standard",
       characters: CHAR_SETS.standard,
@@ -69,6 +62,7 @@ export const QUALITY_PRESETS = {
   detailed: {
     label: "Detailed",
     settings: {
+      gridColumns: GRID_QUALITY_PRESETS.detailed.columns,
       fontSize: 8,
       characterSet: "detailed",
       characters: CHAR_SETS.detailed,
@@ -83,6 +77,7 @@ export const QUALITY_PRESETS = {
   poster: {
     label: "Poster",
     settings: {
+      gridColumns: GRID_QUALITY_PRESETS.balanced.columns,
       fontSize: 12,
       characterSet: "minimal",
       characters: CHAR_SETS.minimal,
@@ -155,9 +150,7 @@ export function createDefaultSettings() {
     discoRandomize: true,
     discoSeed: 0,
     qualityPreset: "balanced",
-    gridQuality: "balanced",
     gridColumns: GRID_QUALITY_PRESETS.balanced.columns,
-    charsetPreset: "standard",
     fontSize: 11,
     characterSet: "standard",
     characters: CHAR_SETS.standard,

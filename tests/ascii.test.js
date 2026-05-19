@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   CHAR_SETS,
-  CHARSET_PRESETS,
   GRID_QUALITY_PRESETS,
   QUALITY_PRESET_ORDER,
   QUALITY_PRESETS,
@@ -143,7 +142,6 @@ describe("ASCII renderer primitives", () => {
     };
     const settings = {
       ...createDefaultSettings(),
-      gridQuality: "balanced",
       gridColumns: 2,
       characters: " .#",
       characterSet: "custom",
@@ -159,7 +157,6 @@ describe("ASCII renderer primitives", () => {
     const decoded = decodeAsciiGrid(grid, settings);
 
     expect(Object.keys(GRID_QUALITY_PRESETS)).toEqual(["soft", "balanced", "detailed", "ultra"]);
-    expect(CHARSET_PRESETS.map((preset) => preset.id)).toEqual(["standard", "detailed", "blocks", "dots", "geometric"]);
     expect(grid.cols).toBe(2);
     expect(grid.rows).toBe(2);
     expect(grid.cells[0]).toMatchObject({ r: 255, g: 0, b: 0, a: 255, luma: 54 });
@@ -182,6 +179,7 @@ describe("ASCII renderer primitives", () => {
     const detailed = applyQualityPreset(base, "detailed");
 
     expect(detailed.qualityPreset).toBe("detailed");
+    expect(detailed.gridColumns).toBe(GRID_QUALITY_PRESETS.detailed.columns);
     expect(detailed.characterSet).toBe("detailed");
     expect(detailed.characters).toBe(CHAR_SETS.detailed);
     expect(detailed.fontSize).toBeLessThan(base.fontSize);
@@ -199,6 +197,7 @@ describe("ASCII renderer primitives", () => {
     expect(QUALITY_PRESET_ORDER).toEqual(["soft", "balanced", "detailed", "poster"]);
     expect(Object.keys(QUALITY_PRESETS)).toEqual(QUALITY_PRESET_ORDER);
     expect(QUALITY_PRESET_SETTING_KEYS).toEqual([
+      "gridColumns",
       "fontSize",
       "characterSet",
       "characters",

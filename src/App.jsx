@@ -21,8 +21,6 @@ import {
 } from "lucide-react";
 import {
   CHAR_SETS,
-  CHARSET_PRESETS,
-  GRID_QUALITY_ORDER,
   GRID_QUALITY_PRESETS,
   QUALITY_PRESET_ORDER,
   QUALITY_PRESETS,
@@ -875,41 +873,12 @@ function App() {
     setSettings((current) => ({ ...current, [key]: value, qualityPreset: "custom" }));
   }, [trackEvent]);
 
-  const selectGridQuality = useCallback((qualityId) => {
-    const preset = GRID_QUALITY_PRESETS[qualityId] || GRID_QUALITY_PRESETS.balanced;
-    trackEvent("grid_quality_change", { quality: qualityId });
-    stillGridCacheRef.current = { key: "", grid: null };
-    setSettings((current) => ({
-      ...current,
-      gridQuality: GRID_QUALITY_PRESETS[qualityId] ? qualityId : "balanced",
-      gridColumns: preset.columns,
-      fontSize: preset.fontSize,
-      qualityPreset: "custom"
-    }));
-    setStatus(`Detail: ${preset.label}`);
-  }, [trackEvent]);
-
-  const selectCharsetPreset = useCallback((presetId) => {
-    const preset = CHARSET_PRESETS.find((item) => item.id === presetId);
-    if (!preset) return;
-
-    trackEvent("charset_preset_change", { preset: presetId });
-    setSettings((current) => ({
-      ...current,
-      charsetPreset: presetId,
-      characterSet: presetId === "standard" || presetId === "detailed" ? presetId : "custom",
-      characters: preset.value,
-      qualityPreset: "custom"
-    }));
-  }, [trackEvent]);
-
   const updateCharacterSet = useCallback((value) => {
     trackEvent("setting_change", { key: "characterSet", value, qualityPreset: "custom" });
     setSettings((current) => ({
       ...current,
       characterSet: value,
       characters: value === "custom" ? current.characters : CHAR_SETS[value],
-      charsetPreset: value === "standard" || value === "detailed" ? value : "custom",
       qualityPreset: "custom"
     }));
   }, [trackEvent]);
@@ -1292,7 +1261,7 @@ function App() {
       const data = sourceCtx.getImageData(0, 0, width, height);
       buildAsciiCells(data, width, height, settings).forEach((cell) => drawStyledCell(ctx, cell, settings, tick, width, height));
     } else {
-      const requestedCols = Number(settings.gridColumns || GRID_QUALITY_PRESETS[settings.gridQuality]?.columns || GRID_QUALITY_PRESETS.balanced.columns);
+      const requestedCols = Number(settings.gridColumns || GRID_QUALITY_PRESETS.balanced.columns);
       const cols = Math.max(1, Math.round(Number.isFinite(requestedCols) ? requestedCols : GRID_QUALITY_PRESETS.balanced.columns));
       const rows = correctedRows(width, height, cols);
       const sourceCanvas = sourceCanvasRef.current || document.createElement("canvas");
@@ -1914,24 +1883,6 @@ function App() {
                     {settings.style !== "3d" ? (
                       <RangeControl label="Font Size" min={3} max={48} value={settings.fontSize} onChange={(value) => updateQualitySetting("fontSize", value)} />
                     ) : null}
-                    <div className="flex flex-col gap-2">
-                      <Label className="text-xs text-muted-foreground">Glyph Set</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {CHARSET_PRESETS.map((preset) => (
-                          <Button
-                            key={preset.id}
-                            type="button"
-                            size="sm"
-                            variant={settings.charsetPreset === preset.id ? "secondary" : "outline"}
-                            aria-label={`Glyph set ${preset.label}`}
-                            aria-pressed={settings.charsetPreset === preset.id}
-                            onClick={() => selectCharsetPreset(preset.id)}
-                          >
-                            {preset.label}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
                     <SelectControl label="Character Set" value={settings.characterSet} onChange={updateCharacterSet} options={[["standard", "Standard"], ["detailed", "Detailed"], ["minimal", "Minimal"], ["custom", "Custom"]]} />
                     <div className="flex flex-col gap-1.5">
                       <Label className="text-xs text-muted-foreground">Chars</Label>
@@ -1953,29 +1904,6 @@ function App() {
                   </ControlCard>
 
                   <ControlCard title="Intensity" description="Luminance, coverage, threshold, and color response.">
-                    <div className="flex flex-col gap-2">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <Label className="text-xs text-muted-foreground">Detail</Label>
-                        <Badge variant="outline">
-                          Detail: {GRID_QUALITY_PRESETS[settings.gridQuality]?.label || "Balanced"}
-                        </Badge>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                        {GRID_QUALITY_ORDER.map((qualityId) => (
-                          <Button
-                            key={qualityId}
-                            type="button"
-                            size="sm"
-                            variant={settings.gridQuality === qualityId ? "secondary" : "outline"}
-                            aria-label={`Detail ${GRID_QUALITY_PRESETS[qualityId].label}`}
-                            aria-pressed={settings.gridQuality === qualityId}
-                            onClick={() => selectGridQuality(qualityId)}
-                          >
-                            {GRID_QUALITY_PRESETS[qualityId].label}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
                     <div className="flex flex-col gap-2">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <Label className="text-xs text-muted-foreground">Quality Presets</Label>
