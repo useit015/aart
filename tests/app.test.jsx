@@ -43,7 +43,7 @@ describe("ASCII Magic app shell", () => {
     expect(screen.getByText(/Light 1 selected/i)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("switch", { name: "Enable Mask" }));
-    expect(screen.getByText("Draw Mask")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Draw Mask" })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("tab", { name: "Finish" }));
     await userEvent.click(screen.getByRole("button", { name: "Crop / Rotate" }));
@@ -105,6 +105,36 @@ describe("ASCII Magic app shell", () => {
     await userEvent.click(screen.getByRole("tab", { name: "Motion" }));
     expect(screen.getByText("0 / 4")).toBeInTheDocument();
     expect(screen.getByText("Tap to add a light. Drag dots to move. Click a dot to select. Up to 4 lights.")).toBeInTheDocument();
+  });
+
+  it("makes light and mask editing explicit and reversible", async () => {
+    render(<App />);
+
+    await userEvent.click(screen.getByRole("tab", { name: "Motion" }));
+
+    expect(screen.getByText("Preview Tool")).toBeInTheDocument();
+    expect(screen.getByText("Active tool: View Only")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Undo Stroke" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Clear Mask" })).toBeDisabled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Mask Tool" }));
+    expect(screen.getByText("Active tool: Mask")).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Enable Mask" })).toBeChecked();
+    fireEvent.pointerDown(screen.getByTestId("ascii-canvas"), { clientX: 40, clientY: 40 });
+    fireEvent.pointerUp(screen.getByTestId("ascii-canvas"), { clientX: 40, clientY: 40 });
+    expect(await screen.findByText("Mask strokes: 1")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Undo Stroke" }));
+    expect(screen.getByText("Mask strokes: 0")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Light Tool" }));
+    expect(screen.getByText("Active tool: Light")).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Enable Lights" })).toBeChecked();
+    fireEvent.pointerDown(screen.getByTestId("ascii-canvas"), { clientX: 80, clientY: 80 });
+    expect(await screen.findByText("1 / 4")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "View Only" }));
+    expect(screen.getByText("Active tool: View Only")).toBeInTheDocument();
   });
 
   it("supports the standalone changelog route", () => {

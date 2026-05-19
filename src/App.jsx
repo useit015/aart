@@ -391,16 +391,7 @@ function drawVideoDemoMotion(ctx, width, height, seed, timeSeconds) {
 }
 
 function drawMaskGeometry(ctx, width, height, strokes, mode = "fill") {
-  const drawDefault = () => {
-    ctx.beginPath();
-    ctx.ellipse(width * 0.5, height * 0.5, width * 0.32, height * 0.34, 0, 0, Math.PI * 2);
-    mode === "stroke" ? ctx.stroke() : ctx.fill();
-  };
-
-  if (!strokes.length) {
-    drawDefault();
-    return;
-  }
+  if (!strokes.length) return;
 
   strokes.forEach((stroke) => {
     const points = stroke.points || [];
@@ -435,6 +426,13 @@ function drawMaskGeometry(ctx, width, height, strokes, mode = "fill") {
         0,
         Math.PI * 2
       );
+      mode === "stroke" ? ctx.stroke() : ctx.fill();
+      return;
+    }
+
+    if (points.length === 1) {
+      ctx.beginPath();
+      ctx.arc(x, y, (stroke.brushSize || 30) / 2, 0, Math.PI * 2);
       mode === "stroke" ? ctx.stroke() : ctx.fill();
       return;
     }
@@ -889,6 +887,7 @@ function App() {
   const [lights, setLights] = useState([]);
   const [activeLightId, setActiveLightId] = useState(null);
   const [maskStrokes, setMaskStrokes] = useState([]);
+  const [canvasTool, setCanvasTool] = useState("none");
   const [crop, setCrop] = useState({ x: 0, y: 0, w: 1, h: 1, rotation: 0 });
   const [cropHistory, setCropHistory] = useState([]);
   const [cropFuture, setCropFuture] = useState([]);
@@ -1014,6 +1013,52 @@ function App() {
     if (item) handleFile(item.getAsFile());
   }, [handleFile]);
 
+  const activateLightTool = useCallback(() => {
+    setSettings((current) => ({
+      ...current,
+      lights: true,
+      fontSize: Math.max(Number(current.fontSize || 0), 12)
+    }));
+    setCanvasTool("light");
+    trackEvent("canvas_tool_change", { tool: "light" });
+    setStatus("Light tool active");
+  }, [trackEvent]);
+
+  const activateMaskTool = useCallback(() => {
+    setSettings((current) => ({ ...current, mask: true }));
+    setCanvasTool("mask");
+    trackEvent("canvas_tool_change", { tool: "mask" });
+    setStatus("Draw Mask");
+  }, [trackEvent]);
+
+  const clearCanvasTool = useCallback(() => {
+    setCanvasTool("none");
+    trackEvent("canvas_tool_change", { tool: "none" });
+    setStatus("Preview tool disabled");
+  }, [trackEvent]);
+
+  const toggleLights = useCallback((value) => {
+    trackEvent("setting_change", { key: "lights", value });
+    if (value) {
+      activateLightTool();
+      return;
+    }
+    setSettings((current) => ({ ...current, lights: false }));
+    setCanvasTool((current) => (current === "light" ? "none" : current));
+    setStatus("Lights disabled");
+  }, [activateLightTool, trackEvent]);
+
+  const toggleMask = useCallback((value) => {
+    trackEvent("setting_change", { key: "mask", value });
+    if (value) {
+      activateMaskTool();
+      return;
+    }
+    setSettings((current) => ({ ...current, mask: false }));
+    setCanvasTool((current) => (current === "mask" ? "none" : current));
+    setStatus("Mask disabled");
+  }, [activateMaskTool, trackEvent]);
+
   const addLight = useCallback((point = { x: 0.5, y: 0.45 }) => {
     if (lights.length >= 4) {
       setStatus("Maximum of 4 lights reached");
@@ -1033,6 +1078,7 @@ function App() {
     };
     setLights((current) => [...current, nextLight]);
     setActiveLightId(id);
+    setCanvasTool("light");
     setSettings((current) => ({ ...current, lights: true, fontSize: Math.max(Number(current.fontSize || 0), 12) }));
     trackEvent("light_add", { count: lightNumber });
     setStatus(shouldBumpFont ? "Bumped font size to 12 for lighting performance" : `Light ${lightNumber} active`);
@@ -1156,11 +1202,11 @@ function App() {
 
   const handleCanvasPointerDown = useCallback((event) => {
     const canvas = canvasRef.current;
-    if (!canvas || (!settings.mask && !settings.lights)) return;
+    if (!canvas || canvasTool === "none") return;
     event.preventDefault();
     const point = getCanvasPoint(event, canvas);
 
-    if (settings.mask) {
+    if (canvasTool === "mask" && settings.mask) {
       const id = `mask-${Date.now()}`;
       drawingStrokeRef.current = id;
       setMaskStrokes((current) => [...current, {
@@ -1174,7 +1220,7 @@ function App() {
       return;
     }
 
-    if (settings.lights) {
+    if (canvasTool === "light" && settings.lights) {
       const nearest = lights.find((light) => Math.hypot(light.x - point.x, light.y - point.y) < 0.06);
       if (nearest) {
         setActiveLightId(nearest.id);
@@ -1183,7 +1229,7 @@ function App() {
         addLight(point);
       }
     }
-  }, [addLight, lights, settings.brushSize, settings.lights, settings.mask, settings.maskTool]);
+  }, [addLight, canvasTool, lights, settings.brushSize, settings.lights, settings.mask, settings.maskTool]);
 
   const handleCanvasPointerMove = useCallback((event) => {
     if (!drawingStrokeRef.current || !settings.mask) return;
@@ -1201,6 +1247,16 @@ function App() {
       event.currentTarget?.releasePointerCapture?.(event.pointerId);
       setStatus("Mask updated");
     }
+  }, []);
+
+  const undoMaskStroke = useCallback(() => {
+    setMaskStrokes((current) => current.slice(0, -1));
+    setStatus("Mask stroke undone");
+  }, []);
+
+  const clearMask = useCallback(() => {
+    setMaskStrokes([]);
+    setStatus("Mask cleared");
   }, []);
 
   const draw = useCallback((tick = performance.now()) => {
@@ -1702,7 +1758,9 @@ function App() {
                 ref={canvasRef}
                 data-testid="ascii-canvas"
                 aria-label="ASCII art preview"
-                className="max-h-[72vh] w-full max-w-[1100px] touch-none rounded-lg object-contain shadow-2xl"
+                className={`max-h-[72vh] w-full max-w-[1100px] touch-none rounded-lg object-contain shadow-2xl ${
+                  canvasTool === "mask" ? "cursor-crosshair" : canvasTool === "light" ? "cursor-cell" : ""
+                }`}
                 onPointerDown={handleCanvasPointerDown}
                 onPointerMove={handleCanvasPointerMove}
                 onPointerUp={finishCanvasPointer}
@@ -1965,6 +2023,25 @@ function App() {
                 </TabsContent>
 
                 <TabsContent value="motion" className="flex flex-col gap-4">
+                  <ControlCard title="Preview Tool" description="Choose the active preview editing mode.">
+                    <div className="grid grid-cols-3 gap-2">
+                      <Button variant={canvasTool === "none" ? "secondary" : "outline"} onClick={clearCanvasTool}>
+                        View Only
+                      </Button>
+                      <Button variant={canvasTool === "light" ? "secondary" : "outline"} onClick={activateLightTool}>
+                        <SparklesIcon data-icon="inline-start" />
+                        Light Tool
+                      </Button>
+                      <Button variant={canvasTool === "mask" ? "secondary" : "outline"} onClick={activateMaskTool}>
+                        <LayersIcon data-icon="inline-start" />
+                        Mask Tool
+                      </Button>
+                    </div>
+                    <Badge variant="outline" className="w-fit">
+                      Active tool: {canvasTool === "light" ? "Light" : canvasTool === "mask" ? "Mask" : "View Only"}
+                    </Badge>
+                  </ControlCard>
+
                   <ControlCard title="Animation" description="Animated ASCII timing and reveal styles.">
                     <ToggleControl label="Animated ASCII" checked={settings.animated} onChange={(value) => updateSetting("animated", value)} />
                     <SelectControl label="Animation Style" value={settings.animationStyle} onChange={(value) => updateSetting("animationStyle", value)} options={[["wave", "Wave"], ["cascade-lr", "Cascade Left to Right"], ["cascade-rl", "Cascade Right to Left"], ["cascade-tb", "Cascade Top to Bottom"], ["reveal", "Reveal"], ["pulse", "Pulse"]]} />
@@ -1974,7 +2051,7 @@ function App() {
                   </ControlCard>
 
                   <ControlCard title="Lights" description="Place lights, shape glow, and push the ASCII surface.">
-                    <ToggleControl label="Enable Lights" checked={settings.lights} onChange={(value) => updateSetting("lights", value)} />
+                    <ToggleControl label="Enable Lights" checked={settings.lights} onChange={toggleLights} />
                     <Badge variant="outline" className="w-fit">{lights.length} / 4</Badge>
                     <div className="grid grid-cols-2 gap-2">
                       <Button variant="outline" onClick={() => addLight()}>
@@ -2040,17 +2117,22 @@ function App() {
                   </ControlCard>
 
                   <ControlCard title="Mask" description="Restrict ASCII art to drawn areas while preserving the background.">
-                    <ToggleControl label="Enable Mask" checked={settings.mask} onChange={(value) => updateSetting("mask", value)} />
-                    {settings.mask ? (
-                      <Button variant="secondary" onClick={() => setStatus("Draw Mask")}>
+                    <ToggleControl label="Enable Mask" checked={settings.mask} onChange={toggleMask} />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button variant={canvasTool === "mask" ? "secondary" : "outline"} onClick={activateMaskTool}>
+                        <LayersIcon data-icon="inline-start" />
                         Draw Mask
                       </Button>
-                    ) : null}
+                      <Badge variant="outline">Mask strokes: {maskStrokes.length}</Badge>
+                    </div>
                     <SelectControl label="Mask Tool" value={settings.maskTool} onChange={(value) => updateSetting("maskTool", value)} options={[["freehand", "Freehand"], ["rect", "Rectangle"], ["ellipse", "Ellipse"]]} />
                     <RangeControl label="Brush Size" min={5} max={100} value={settings.brushSize} onChange={(value) => updateSetting("brushSize", value)} />
                     <ToggleControl label="Show Overlay" checked={settings.showMaskOverlay} onChange={(value) => updateSetting("showMaskOverlay", value)} />
                     <ToggleControl label="Invert Mask" checked={settings.invertMask} onChange={(value) => updateSetting("invertMask", value)} />
-                    <Button variant="outline" onClick={() => { setMaskStrokes([]); setStatus("Mask cleared"); }}>Clear Mask</Button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="outline" disabled={!maskStrokes.length} onClick={undoMaskStroke}>Undo Stroke</Button>
+                      <Button variant="outline" disabled={!maskStrokes.length} onClick={clearMask}>Clear Mask</Button>
+                    </div>
                   </ControlCard>
                 </TabsContent>
 
