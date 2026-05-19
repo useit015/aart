@@ -2016,6 +2016,7 @@ function App() {
                     <RangeControl label="Density" min={0} max={100} value={settings.density} suffix="%" onChange={(value) => updateSetting("density", value)} />
                     <RangeControl label="Brightness" min={-100} max={100} value={settings.brightness} onChange={(value) => updateSetting("brightness", value)} />
                     <RangeControl label="Contrast" min={-100} max={100} value={settings.contrast} onChange={(value) => updateSetting("contrast", value)} />
+                    <RangeControl label="Gamma" min={40} max={260} value={settings.gamma} suffix="%" onChange={(value) => updateSetting("gamma", value)} />
                   </ControlCard>
                 </TabsContent>
 

@@ -75,6 +75,7 @@ export function createDefaultSettings() {
     density: 30,
     brightness: 0,
     contrast: 100,
+    gamma: 100,
     animated: false,
     animationStyle: "wave",
     animationSpeed: 3000,
@@ -134,8 +135,10 @@ export function resolveCharacters(settings) {
 
 export function luminanceToGlyph(luminance, settings = createDefaultSettings()) {
   const chars = resolveCharacters(settings);
+  const gamma = clamp(Number(settings.gamma || 100) / 100, 0.2, 4);
   const normalized = Math.max(0, Math.min(255, luminance)) / 255;
-  const mapped = settings.invert ? 1 - normalized : normalized;
+  const toned = Math.pow(normalized, 1 / gamma);
+  const mapped = settings.invert ? 1 - toned : toned;
   const index = Math.max(0, Math.min(chars.length - 1, Math.round(mapped * (chars.length - 1))));
   return chars[index] || " ";
 }
@@ -187,35 +190,37 @@ export function buildAsciiCells(imageData, width, height, settings = createDefau
   const coverage = Number(settings.coverage || 100) / 100;
   const density = Number(settings.density || 0) / 100;
   const edgeEmphasis = Number(settings.edgeEmphasis || 0) / 100;
+  const cols = Math.ceil(width / cellW);
+  const rows = Math.ceil(height / cellH);
+  const samples = [];
   const cells = [];
-  const sampleLuminance = (sampleX, sampleY) => {
-    const i = (sampleY * width + sampleX) * 4;
-    return adjustLuminance(imageData.data[i] ?? 0, imageData.data[i + 1] ?? 0, imageData.data[i + 2] ?? 0, settings);
-  };
 
-  for (let y = 0; y < height; y += cellH) {
-    for (let x = 0; x < width; x += cellW) {
-      const sampleX = Math.min(width - 1, x + Math.floor(cellW / 2));
-      const sampleY = Math.min(height - 1, y + Math.floor(cellH / 2));
-      const i = (sampleY * width + sampleX) * 4;
-      const r = imageData.data[i] ?? 0;
-      const g = imageData.data[i + 1] ?? 0;
-      const b = imageData.data[i + 2] ?? 0;
-      const a = imageData.data[i + 3] ?? 255;
-      const rawLuminance = adjustLuminance(r, g, b, settings);
-      const edgeX = Math.abs(rawLuminance - sampleLuminance(Math.min(width - 1, sampleX + cellW), sampleY));
-      const edgeY = Math.abs(rawLuminance - sampleLuminance(sampleX, Math.min(height - 1, sampleY + cellH)));
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      samples[row * cols + col] = sampleAsciiCell(imageData, width, height, col * cellW, row * cellH, cellW, cellH, settings);
+    }
+  }
+
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      const sample = samples[row * cols + col];
+      const right = samples[row * cols + Math.min(cols - 1, col + 1)] || sample;
+      const down = samples[Math.min(rows - 1, row + 1) * cols + col] || sample;
+      const left = samples[row * cols + Math.max(0, col - 1)] || sample;
+      const up = samples[Math.max(0, row - 1) * cols + col] || sample;
+      const edgeX = Math.max(Math.abs(sample.luminance - right.luminance), Math.abs(sample.luminance - left.luminance));
+      const edgeY = Math.max(Math.abs(sample.luminance - down.luminance), Math.abs(sample.luminance - up.luminance));
       const edgeBoost = Math.max(edgeX, edgeY) * edgeEmphasis;
-      const luminance = Math.max(0, Math.min(255, rawLuminance - edgeBoost));
+      const luminance = Math.max(0, Math.min(255, sample.luminance - edgeBoost));
       const threshold = 255 * (1 - coverage) + density * 45;
-      const adjustedR = adjustColorChannel(r, settings);
-      const adjustedG = adjustColorChannel(g, settings);
-      const adjustedB = adjustColorChannel(b, settings);
+      const adjustedR = adjustColorChannel(sample.r, settings);
+      const adjustedG = adjustColorChannel(sample.g, settings);
+      const adjustedB = adjustColorChannel(sample.b, settings);
 
-      if (a > 8 && luminance <= 255 - threshold) {
+      if (sample.a > 8 && luminance <= 255 - threshold) {
         cells.push({
-          x,
-          y,
+          x: col * cellW,
+          y: row * cellH,
           w: cellW,
           h: cellH,
           luminance,
@@ -227,6 +232,45 @@ export function buildAsciiCells(imageData, width, height, settings = createDefau
   }
 
   return cells;
+}
+
+function sampleAsciiCell(imageData, width, height, x, y, cellW, cellH, settings) {
+  const xEnd = Math.min(width, x + cellW);
+  const yEnd = Math.min(height, y + cellH);
+  let sumR = 0;
+  let sumG = 0;
+  let sumB = 0;
+  let sumA = 0;
+  let sumLuminance = 0;
+  let weight = 0;
+  let count = 0;
+
+  for (let sampleY = y; sampleY < yEnd; sampleY += 1) {
+    for (let sampleX = x; sampleX < xEnd; sampleX += 1) {
+      const i = (sampleY * width + sampleX) * 4;
+      const r = imageData.data[i] ?? 0;
+      const g = imageData.data[i + 1] ?? 0;
+      const b = imageData.data[i + 2] ?? 0;
+      const a = imageData.data[i + 3] ?? 255;
+      const alpha = a / 255;
+      sumR += r * alpha;
+      sumG += g * alpha;
+      sumB += b * alpha;
+      sumA += a;
+      sumLuminance += adjustLuminance(r, g, b, settings) * alpha;
+      weight += alpha;
+      count += 1;
+    }
+  }
+
+  const divisor = weight || count || 1;
+  return {
+    r: Math.round(sumR / divisor),
+    g: Math.round(sumG / divisor),
+    b: Math.round(sumB / divisor),
+    a: count ? sumA / count : 0,
+    luminance: sumLuminance / divisor
+  };
 }
 
 export function clamp(value, min, max) {

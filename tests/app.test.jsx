@@ -22,6 +22,7 @@ describe("Glyph Studio app shell", () => {
 
     await userEvent.click(screen.getByRole("tab", { name: "Look" }));
     expect(screen.getByText("Render style")).toBeInTheDocument();
+    expect(screen.getByText("Gamma")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Inspire Me" }));
 

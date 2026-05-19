@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CHAR_SETS,
+  adjustColorChannel,
   buildAsciiCells,
   computeAnimationTransform,
   createDefaultSettings,
@@ -57,6 +58,42 @@ describe("ASCII renderer primitives", () => {
 
     expect(cells.some((cell) => cell.luminance < 24)).toBe(true);
     expect(cells[0].color).not.toBe("rgb(24, 24, 24)");
+  });
+
+  it("samples the full cell area so one bright pixel does not wash out detail", () => {
+    const width = 4;
+    const height = 4;
+    const data = new Uint8ClampedArray(width * height * 4).fill(0);
+    for (let pixel = 0; pixel < width * height; pixel += 1) {
+      data[pixel * 4 + 3] = 255;
+    }
+    const brightCenter = (2 * width + 2) * 4;
+    data[brightCenter] = 255;
+    data[brightCenter + 1] = 255;
+    data[brightCenter + 2] = 255;
+
+    const cells = buildAsciiCells({ data }, width, height, {
+      ...createDefaultSettings(),
+      style: "pixel",
+      fontSize: 4,
+      coverage: 100,
+      edgeEmphasis: 0,
+      density: 0
+    });
+
+    expect(cells).toHaveLength(1);
+    expect(cells[0].luminance).toBeLessThan(40);
+    expect(cells[0].color).toBe("rgb(16, 16, 16)");
+  });
+
+  it("applies gamma to glyph selection without changing source color", () => {
+    const settings = {
+      ...createDefaultSettings(),
+      gamma: 200
+    };
+
+    expect(luminanceToGlyph(64, settings)).toBe("+");
+    expect(adjustColorChannel(64, settings)).toBe(64);
   });
 
   it("uses style-specific cell metrics for mosaic and cube controls", () => {
