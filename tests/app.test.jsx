@@ -79,10 +79,14 @@ describe("ASCII Magic app shell", () => {
       expect(fileInput).not.toBeNull();
       expect(fileInput).toHaveAttribute("accept", expect.stringContaining(".mp4"));
       fireEvent.change(fileInput, { target: { files: [videoFile] } });
+      const video = container.querySelector("video");
 
       expect(screen.getByText("clip.mp4 loaded")).toBeInTheDocument();
       expect(screen.getByText("Video source")).toBeInTheDocument();
       expect(screen.queryByText("Unsupported file type")).not.toBeInTheDocument();
+      expect(video).toHaveAttribute("preload", "auto");
+      expect(video).toHaveAttribute("autoplay");
+      expect(video).not.toHaveClass("hidden");
     } finally {
       URL.createObjectURL = originalCreateObjectUrl;
     }

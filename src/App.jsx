@@ -1442,6 +1442,46 @@ function App() {
     setStatus(`Speed ${rate}x`);
   }, []);
 
+  const updateVideoStats = useCallback((video) => {
+    const nextDuration = Number.isFinite(video.duration) ? video.duration : 100;
+    setDuration(Math.max(0.1, nextDuration));
+    setSourceStats({
+      width: video.videoWidth,
+      height: video.videoHeight,
+      duration: nextDuration
+    });
+    return nextDuration;
+  }, []);
+
+  const handleVideoMetadata = useCallback((event) => {
+    const video = event.currentTarget;
+    const nextDuration = updateVideoStats(video);
+    setStatus("Preparing first video frame");
+    try {
+      if (video.readyState < 2 && nextDuration > 0) {
+        video.currentTime = Math.min(0.01, nextDuration / 100);
+      }
+    } catch {
+      // Some browsers reject tiny seeks before the first frame is decoded.
+    }
+    try {
+      const playPromise = video.play?.();
+      if (playPromise?.then) {
+        playPromise
+          .then(() => setIsPlaying(true))
+          .catch(() => setStatus("Video ready; press Play to render frames"));
+      }
+    } catch {
+      setStatus("Video ready; press Play to render frames");
+    }
+  }, [updateVideoStats]);
+
+  const handleVideoFrameReady = useCallback((event) => {
+    updateVideoStats(event.currentTarget);
+    draw();
+    setStatus(`${sourceName || "Video"} rendering`);
+  }, [draw, sourceName, updateVideoStats]);
+
   const technicalDetails = useMemo(() => {
     const activeEffects = Object.entries(settings.effects)
       .filter(([, value]) => value === true)
@@ -1540,22 +1580,20 @@ function App() {
               {videoUrl ? (
                 <video
                   ref={videoRef}
-                  className="hidden"
+                  aria-hidden="true"
+                  autoPlay
+                  className="pointer-events-none absolute size-px opacity-0"
                   src={videoUrl}
                   muted
                   playsInline
+                  preload="auto"
                   loop
-                  onLoadedMetadata={(event) => {
-                    const nextDuration = Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 100;
-                    setDuration(Math.max(0.1, nextDuration));
-                    setSourceStats({
-                      width: event.currentTarget.videoWidth,
-                      height: event.currentTarget.videoHeight,
-                      duration: nextDuration
-                    });
-                    draw();
-                  }}
-                  onLoadedData={() => draw()}
+                  onCanPlay={handleVideoFrameReady}
+                  onLoadedData={handleVideoFrameReady}
+                  onLoadedMetadata={handleVideoMetadata}
+                  onPause={() => setIsPlaying(false)}
+                  onPlay={() => setIsPlaying(true)}
+                  onSeeked={handleVideoFrameReady}
                   onTimeUpdate={(event) => setSeek(event.currentTarget.currentTime)}
                 />
               ) : null}
