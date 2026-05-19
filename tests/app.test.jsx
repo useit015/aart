@@ -170,6 +170,27 @@ describe("Glyph Studio app shell", () => {
     expect(screen.queryByRole("button", { name: "Random Demo" })).not.toBeInTheDocument();
   });
 
+  it("adds interactive preview motion without replacing light and mask workflows", async () => {
+    render(<App />);
+
+    await userEvent.click(screen.getByRole("tab", { name: "Motion" }));
+
+    expect(screen.getByText("Interactive Motion")).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Enable Interaction" })).not.toBeChecked();
+    expect(screen.getByLabelText("Pointer")).toBeInTheDocument();
+    expect(screen.getByLabelText("Idle")).toBeInTheDocument();
+    expect(screen.getByText("Force")).toBeInTheDocument();
+    expect(screen.getByText("Radius")).toBeInTheDocument();
+    expect(screen.getByText("Motion Amount")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Burst" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reset Motion" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Place Lights" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Draw Mask" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("switch", { name: "Enable Interaction" }));
+    expect(screen.getByRole("switch", { name: "Enable Interaction" })).toBeChecked();
+  });
+
   it("supports the standalone changelog route", () => {
     window.history.pushState({}, "", "/changelog");
 
