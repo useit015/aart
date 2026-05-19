@@ -17,13 +17,13 @@ describe("Glyph Studio app shell", () => {
     expect(screen.getByRole("heading", { name: "Glyph Studio" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Upload Image / Video" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Source" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Look" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Signal" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Motion" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Finish" })).toBeInTheDocument();
     expect(screen.queryByText("Background gallery")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Export" })).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("tab", { name: "Look" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Signal" }));
     expect(screen.getByText("Render style")).toBeInTheDocument();
     expect(screen.getByText("Gamma")).toBeInTheDocument();
     expect(screen.getByTestId("ascii-canvas")).toBeInTheDocument();
@@ -36,7 +36,7 @@ describe("Glyph Studio app shell", () => {
   it("exposes parity controls for backgrounds, crop, lights, masks, and animated export", async () => {
     render(<App />);
 
-    await userEvent.click(screen.getByRole("tab", { name: "Look" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Signal" }));
     expect(screen.getByText("Background gallery")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Demo 02" })).not.toBeInTheDocument();
 
@@ -98,14 +98,14 @@ describe("Glyph Studio app shell", () => {
   it("covers the remaining hard parity surfaces the previous audit missed", async () => {
     render(<App />);
 
-    await userEvent.click(screen.getByRole("tab", { name: "Look" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Signal" }));
     expect(screen.getByText("34 curated backgrounds")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Background 34" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Video 01" })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("tab", { name: "Motion" }));
     expect(screen.getByText("0 / 4")).toBeInTheDocument();
-    expect(screen.getByText("Tap to add a light. Drag dots to move. Click a dot to select. Up to 4 lights.")).toBeInTheDocument();
+    expect(screen.getByText("No lights placed")).toBeInTheDocument();
   });
 
   it("makes light and mask editing explicit and reversible", async () => {
@@ -142,7 +142,7 @@ describe("Glyph Studio app shell", () => {
   it("applies quality presets and marks manual quality edits as custom", async () => {
     render(<App />);
 
-    await userEvent.click(screen.getByRole("tab", { name: "Look" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Signal" }));
     expect(screen.getByText("Quality Presets")).toBeInTheDocument();
     expect(screen.getByText("Active quality preset: Balanced")).toBeInTheDocument();
 
@@ -158,7 +158,7 @@ describe("Glyph Studio app shell", () => {
   it("keeps quality and character choices in their existing controls", async () => {
     render(<App />);
 
-    await userEvent.click(screen.getByRole("tab", { name: "Look" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Signal" }));
     expect(screen.getByText("Quality Presets")).toBeInTheDocument();
     expect(screen.getByLabelText("Character Set")).toBeInTheDocument();
     expect(screen.queryByText("Detail")).not.toBeInTheDocument();

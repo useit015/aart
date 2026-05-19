@@ -389,10 +389,10 @@ function cloneCanvasAtScale(canvas, scale = 1) {
 
 function SelectControl({ label, value, onChange, options }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+    <div className="flex flex-col gap-2">
+      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
       <Select value={String(value)} onValueChange={onChange}>
-        <SelectTrigger aria-label={label} className="w-full">
+        <SelectTrigger aria-label={label} className="h-10 w-full border-border bg-secondary/65">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -411,10 +411,10 @@ function SelectControl({ label, value, onChange, options }) {
 
 function RangeControl({ label, min, max, step = 1, value, suffix = "", onChange }) {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2.5">
       <div className="flex items-center justify-between gap-3">
-        <Label className="text-xs text-muted-foreground">{label}</Label>
-        <span className="min-w-12 text-right text-xs tabular-nums text-muted-foreground">
+        <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+        <span className="min-w-12 text-right text-xs font-medium tabular-nums text-foreground">
           {value}{suffix}
         </span>
       </div>
@@ -432,55 +432,84 @@ function RangeControl({ label, min, max, step = 1, value, suffix = "", onChange 
 
 function ToggleControl({ label, checked, onChange }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border bg-card/60 px-3 py-2">
-      <Label className="text-sm">{label}</Label>
+    <div className="control-row">
+      <Label className="text-sm font-medium">{label}</Label>
       <Switch checked={checked} onCheckedChange={onChange} aria-label={label} />
     </div>
   );
 }
 
-function ControlCard({ title, description, children }) {
+function ControlCard({ title, description, eyebrow, children, className = "" }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        {description ? <CardDescription>{description}</CardDescription> : null}
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">{children}</CardContent>
-    </Card>
+    <section className={`mission-panel ${className}`}>
+      <header className="mission-panel-header">
+        {eyebrow ? <span className="mission-kicker">{eyebrow}</span> : null}
+        <h2 className="text-base font-semibold leading-tight">{title}</h2>
+        {description ? <p className="text-sm leading-5 text-muted-foreground">{description}</p> : null}
+      </header>
+      <div className="mission-panel-body">{children}</div>
+    </section>
+  );
+}
+
+function TelemetryPill({ icon: Icon, label, value }) {
+  return (
+    <span className="telemetry-pill">
+      {Icon ? <Icon className="size-3.5" aria-hidden="true" /> : null}
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </span>
+  );
+}
+
+function Readout({ label, value, detail }) {
+  return (
+    <div className="stage-readout grid gap-1 p-3">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <strong className="text-lg font-semibold leading-none tabular-nums">{value}</strong>
+      {detail ? <span className="text-xs text-muted-foreground">{detail}</span> : null}
+    </div>
   );
 }
 
 function ChangelogPage({ onBack }) {
   return (
-    <div className="min-h-screen bg-background p-4 lg:p-8">
-      <main className="mx-auto flex max-w-3xl flex-col gap-6">
-        <Button asChild variant="outline" className="w-fit">
-          <a
-            href="/"
-            onClick={(event) => {
-              event.preventDefault();
-              onBack();
-            }}
-          >
-            Back to Glyph Studio
-          </a>
-        </Button>
-        <div className="flex flex-col gap-2">
+    <div className="mission-shell p-4 lg:p-8">
+      <main className="relative z-10 mx-auto grid max-w-4xl gap-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Button asChild variant="outline" className="w-fit">
+            <a
+              href="/"
+              onClick={(event) => {
+                event.preventDefault();
+                onBack();
+              }}
+            >
+              Back to Glyph Studio
+            </a>
+          </Button>
           <Badge variant="secondary" className="w-fit">Public editor notes</Badge>
-          <h1 className="text-4xl font-semibold tracking-tight">Changelog</h1>
-          <p className="text-sm text-muted-foreground">
-            Current editor surface, including controls, export behavior, and feedback states.
-          </p>
         </div>
-        <div className="flex flex-col gap-3">
-          {CHANGELOG_ENTRIES.map((entry) => (
-            <Card key={entry.title}>
-              <CardHeader>
-                <CardTitle>{entry.title}</CardTitle>
-                <CardDescription>{entry.description}</CardDescription>
-              </CardHeader>
-            </Card>
+        <header className="grid gap-3">
+          <span className="mission-kicker">release channel</span>
+          <h1 className="text-4xl font-semibold leading-tight">Changelog</h1>
+          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+            Conversion controls, export paths, feedback states, and editor parity updates.
+          </p>
+        </header>
+        <div className="grid gap-3">
+          {CHANGELOG_ENTRIES.map((entry, index) => (
+            <section key={entry.title} className="mission-panel p-4">
+              <div className="flex items-start gap-4">
+                <span className="telemetry-pill min-w-12 justify-center">
+                  <strong>{String(index + 1).padStart(2, "0")}</strong>
+                </span>
+                <div className="grid gap-1">
+                  <h2 className="text-base font-semibold">{entry.title}</h2>
+                  <p className="text-sm leading-6 text-muted-foreground">{entry.description}</p>
+                </div>
+              </div>
+            </section>
           ))}
         </div>
       </main>
@@ -1925,44 +1954,115 @@ function App() {
     </React.Fragment>
   )), [settings.effects, updateEffect]);
 
+  const activeEffectNames = useMemo(() => Object.entries(settings.effects)
+    .filter(([key, value]) => value === true && EFFECTS.some(([effectKey]) => effectKey === key))
+    .map(([key]) => EFFECTS.find(([effectKey]) => effectKey === key)?.[1] || key), [settings.effects]);
+  const sourceResolutionLabel = sourceStats?.width
+    ? `${sourceStats.width}x${sourceStats.height}${sourceStats.duration ? `, ${sourceStats.duration.toFixed(1)}s` : ""}`
+    : "pending";
+  const sourceStateLabel = sourceName || "No source";
+  const toolStateLabel = canvasTool === "mask" ? "Mask drawing" : canvasTool === "light" ? "Light placement" : settings.interactiveMotion ? "Pointer motion" : "Preview";
+  const qualityLabel = QUALITY_PRESETS[settings.qualityPreset]?.label || "Custom";
+  const exportLabel = `${settings.exportFormat.toUpperCase()} ${settings.exportScale}x`;
+
   if (route === "/changelog") {
     return <ChangelogPage onBack={() => navigate("/")} />;
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_16%_10%,rgba(255,42,127,.18),transparent_26%),radial-gradient(circle_at_80%_0%,rgba(33,212,253,.18),transparent_25%)]">
-      <div className="grid min-h-screen grid-cols-1 xl:grid-cols-[minmax(0,1fr)_430px]">
-        <section className="flex min-w-0 flex-col gap-4 p-4 lg:p-6">
-          <Card className="border-dashed bg-card/70">
-            <CardContent
-              className="flex min-h-32 flex-col items-center justify-center gap-3 p-5 text-center"
-              onClick={() => fileRef.current?.click()}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                handleFile(event.dataTransfer.files[0]);
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <ImageUpIcon data-icon="inline-start" />
-                <p className="font-medium">Drop an image or video here</p>
-              </div>
-              <p className="text-sm text-muted-foreground">or click to browse / paste from clipboard</p>
-            </CardContent>
-          </Card>
+    <div className="mission-shell">
+      <input ref={fileRef} hidden type="file" accept={UPLOAD_ACCEPT} onChange={(event) => handleFile(event.target.files[0])} />
+      <div className="relative z-10 grid min-h-screen gap-4 p-3 lg:p-5 2xl:grid-cols-[minmax(0,1fr)_440px]">
+        <main className="grid min-w-0 gap-4">
+          <header className="rail-surface flex flex-wrap items-center justify-between gap-3 p-3 lg:p-4">
+            <div className="grid gap-1">
+              <span className="mission-kicker">glyph conversion array</span>
+              <h1 className="text-2xl font-semibold leading-tight">Glyph Studio</h1>
+              <p className="text-sm text-muted-foreground">Image-to-ASCII editor</p>
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <TelemetryPill icon={ImageUpIcon} label="source" value={sourceStateLabel} />
+              <TelemetryPill icon={SparklesIcon} label="signal" value={settings.style === "3d" ? "Cube" : STYLE_LABELS[settings.style]} />
+              <TelemetryPill icon={DownloadIcon} label="export" value={exportLabel} />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button aria-label="Menu" variant="outline" size="icon">
+                    <MenuIcon />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+                      {theme === "dark" ? <SunIcon data-icon="inline-start" /> : <MoonIcon data-icon="inline-start" />}
+                      {theme === "dark" ? "Light Mode" : "Dark Mode"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setModal("bug")}>
+                      <BugIcon data-icon="inline-start" />
+                      Report a Bug
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setModal("feature")}>
+                      <SparklesIcon data-icon="inline-start" />
+                      Suggest a Feature
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setModal("about")}>
+                      <InfoIcon data-icon="inline-start" />
+                      About
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <a
+                      href="/changelog"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        navigate("/changelog");
+                      }}
+                    >
+                      Changelog
+                    </a>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </header>
 
-          <Card className="min-h-[62vh] overflow-hidden bg-card/60">
-            <CardContent className="relative flex min-h-[62vh] items-center justify-center p-4 lg:p-8">
-              <div className="absolute left-4 top-4 z-10 flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">{sourceName || "No source"}</Badge>
-                <Badge variant="outline">{settings.style === "3d" ? "Cube" : STYLE_LABELS[settings.style]}</Badge>
-                <Badge variant="outline">{settings.exportScale}x export</Badge>
+          <section
+            className="drop-zone grid min-h-28 cursor-pointer gap-3 p-4 sm:grid-cols-[1fr_auto] sm:items-center lg:p-5"
+            onClick={() => fileRef.current?.click()}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              handleFile(event.dataTransfer.files[0]);
+            }}
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="grid size-11 shrink-0 place-items-center rounded-md border border-primary/50 bg-primary/10 text-primary">
+                <ImageUpIcon className="size-5" aria-hidden="true" />
+              </span>
+              <div className="grid min-w-0 gap-1">
+                <h2 className="text-lg font-semibold leading-tight">Load source media</h2>
+                <p className="truncate text-sm text-muted-foreground">{sourceName || "Drop an image or video here"}</p>
               </div>
+            </div>
+            <Button aria-label="Choose source media" onClick={() => fileRef.current?.click()}>
+              <ImageUpIcon data-icon="inline-start" />
+              Choose Source
+            </Button>
+          </section>
+
+          <section className="preview-frame relative grid min-h-[54vh] overflow-hidden p-3 lg:min-h-[66vh] lg:p-5">
+            <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex flex-wrap items-center gap-2 lg:inset-x-5 lg:top-5">
+              <Badge variant="secondary">{sourceStateLabel}</Badge>
+              <Badge variant="outline">{toolStateLabel}</Badge>
+              <Badge variant="outline">{qualityLabel}</Badge>
+              {activeEffectNames.length ? <Badge variant="outline">{activeEffectNames.length} effects</Badge> : null}
+            </div>
+            <div className="relative flex min-h-[48vh] items-center justify-center pt-12">
               <canvas
                 ref={canvasRef}
                 data-testid="ascii-canvas"
                 aria-label="ASCII art preview"
-                className={`max-h-[72vh] w-full max-w-[1100px] touch-none rounded-lg object-contain shadow-2xl ${
+                className={`max-h-[70vh] w-full max-w-[1120px] touch-none rounded-md object-contain shadow-2xl ${
                   canvasTool === "mask" ? "cursor-crosshair" : canvasTool === "light" ? "cursor-cell" : ""
                 }`}
                 onPointerEnter={updateCanvasPointerMotion}
@@ -1992,100 +2092,88 @@ function App() {
                   onTimeUpdate={(event) => setSeek(event.currentTarget.currentTime)}
                 />
               ) : null}
-              <div className="absolute bottom-4 left-4 max-w-[calc(100%-2rem)] rounded-lg bg-background/85 px-3 py-2 text-sm text-muted-foreground shadow-lg backdrop-blur">
-                {status}
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-
-        <aside className="border-t bg-background/92 xl:max-h-screen xl:border-l xl:border-t-0">
-          <div className="flex items-center justify-between gap-3 border-b p-4">
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight">Glyph Studio</h1>
-              <p className="text-sm text-muted-foreground">Image-to-ASCII editor</p>
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button aria-label="Menu" variant="outline" size="icon">
-                  <MenuIcon />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-                    {theme === "dark" ? <SunIcon data-icon="inline-start" /> : <MoonIcon data-icon="inline-start" />}
-                    {theme === "dark" ? "Light Mode" : "Dark Mode"}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setModal("bug")}>
-                    <BugIcon data-icon="inline-start" />
-                    Report a Bug
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setModal("feature")}>
-                    <SparklesIcon data-icon="inline-start" />
-                    Suggest a Feature
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setModal("about")}>
-                    <InfoIcon data-icon="inline-start" />
-                    About
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <a
-                    href="/changelog"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      navigate("/changelog");
-                    }}
-                  >
-                    Changelog
-                  </a>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="absolute inset-x-3 bottom-3 z-10 flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-background/90 px-3 py-2 text-sm shadow-lg lg:inset-x-5 lg:bottom-5">
+              <span className="font-medium text-foreground">{status}</span>
+              <span className="text-xs text-muted-foreground">{sourceResolutionLabel}</span>
+            </div>
+          </section>
+
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Readout label="Source" value={sourceKind === "video" ? "Video" : "Image"} detail={sourceResolutionLabel} />
+            <Readout label="Signal" value={qualityLabel} detail={`${settings.gridColumns} cols`} />
+            <Readout label="Motion" value={settings.interactiveMotion || settings.animated ? "Active" : "Still"} detail={toolStateLabel} />
+            <Readout label="Finish" value={exportLabel} detail={`${settings.exportDuration}s, ${settings.exportFps} fps`} />
+          </section>
+        </main>
+
+        <aside className="rail-surface flex min-h-0 flex-col overflow-hidden 2xl:max-h-[calc(100vh-2.5rem)]">
+          <div className="grid gap-3 border-b border-border p-3 lg:p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="grid gap-1">
+                <span className="mission-kicker">control rail</span>
+                <h2 className="text-xl font-semibold leading-tight">Mission flow</h2>
+              </div>
+              <Badge variant="outline">{activeEffectNames.length} FX</Badge>
+            </div>
+            <p className="text-sm leading-5 text-muted-foreground">Source, signal, motion, and finish stay in one pass.</p>
           </div>
 
-          <ScrollArea className="xl:h-[calc(100vh-73px)]">
-            <div className="p-4">
-              <input ref={fileRef} hidden type="file" accept={UPLOAD_ACCEPT} onChange={(event) => handleFile(event.target.files[0])} />
+          <ScrollArea className="2xl:h-[calc(100vh-9.5rem)]">
+            <div className="p-3 lg:p-4">
               <Tabs defaultValue="source" className="gap-4">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="source">Source</TabsTrigger>
-                  <TabsTrigger value="look">Look</TabsTrigger>
-                  <TabsTrigger value="motion">Motion</TabsTrigger>
-                  <TabsTrigger value="finish">Finish</TabsTrigger>
+                <TabsList className="grid h-auto w-full grid-cols-4 gap-1 bg-secondary/70 p-1">
+                  <TabsTrigger value="source" className="h-11 flex-col gap-0.5 px-1 text-xs sm:text-sm">
+                    <ImageUpIcon className="size-3.5" aria-hidden="true" />
+                    Source
+                  </TabsTrigger>
+                  <TabsTrigger value="look" className="h-11 flex-col gap-0.5 px-1 text-xs sm:text-sm">
+                    <SparklesIcon className="size-3.5" aria-hidden="true" />
+                    Signal
+                  </TabsTrigger>
+                  <TabsTrigger value="motion" className="h-11 flex-col gap-0.5 px-1 text-xs sm:text-sm">
+                    <LayersIcon className="size-3.5" aria-hidden="true" />
+                    Motion
+                  </TabsTrigger>
+                  <TabsTrigger value="finish" className="h-11 flex-col gap-0.5 px-1 text-xs sm:text-sm">
+                    <DownloadIcon className="size-3.5" aria-hidden="true" />
+                    Finish
+                  </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="source" className="flex flex-col gap-4">
-                  <ControlCard title="Source" description="Upload or paste an image/video source.">
-                    <div className="grid gap-2">
-                      <Button onClick={() => fileRef.current?.click()}>
-                        <ImageUpIcon data-icon="inline-start" />
-                        Upload Image / Video
-                      </Button>
+                <TabsContent value="source" className="grid gap-4">
+                  <ControlCard eyebrow="01 source" title="Load source" description="Images and videos render through the same preview engine.">
+                    <Button onClick={() => fileRef.current?.click()}>
+                      <ImageUpIcon data-icon="inline-start" />
+                      Upload Image / Video
+                    </Button>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <TelemetryPill label="kind" value={sourceKind.startsWith("video") ? "Video source" : "Image source"} />
+                      <TelemetryPill label="resolution" value={sourceResolutionLabel} />
                     </div>
                   </ControlCard>
 
-                  <ControlCard title="Playback" description="Video parity controls are staged on the same surface.">
+                  <ControlCard eyebrow="02 playback" title="Video transport" description="Frame selection and speed stay available for still media too.">
                     <div className="grid grid-cols-2 gap-2">
                       <Button variant="outline" onClick={playVideo}><PlayIcon data-icon="inline-start" />Play</Button>
                       <Button variant="outline" onClick={stopVideo}><SquareIcon data-icon="inline-start" />Stop</Button>
                     </div>
                     <RangeControl label="Seek" min={0} max={Math.max(0.1, duration)} step={0.1} value={Number(seek.toFixed(1))} onChange={updateSeek} />
                     <SelectControl label="Speed" value={playbackRate} onChange={updatePlaybackRate} options={[["0.25", "0.25x"], ["0.5", "0.5x"], ["1", "1x"], ["1.5", "1.5x"], ["2", "2x"]]} />
-                    <Badge variant="secondary" className="w-fit">FPS 30</Badge>
-                    <Badge variant="outline" className="w-fit">{sourceKind.startsWith("video") ? "Video source" : "Image source"}</Badge>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="secondary" className="w-fit">FPS 30</Badge>
+                      <Badge variant="outline" className="w-fit">{isPlaying ? "Playing" : "Stopped"}</Badge>
+                    </div>
                   </ControlCard>
                 </TabsContent>
 
-                <TabsContent value="look" className="flex flex-col gap-4">
-                  <ControlCard title="Render style" description="Character family, density, blend, and shape controls.">
+                <TabsContent value="look" className="grid gap-4">
+                  <ControlCard eyebrow="03 signal" title="Render style" description="Character system, blend, and output texture.">
                     <SelectControl label="Style" value={settings.style} onChange={(value) => updateSetting("style", value)} options={Object.entries(STYLE_LABELS)} />
                     {settings.style === "mosaic" && <SelectControl label="Tile Shape" value={settings.tileShape} onChange={(value) => updateSetting("tileShape", value)} options={[["square", "Square"], ["wide", "Wide"], ["tall", "Tall"]]} />}
                     {settings.style === "3d" && (
-                      <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3">
-                        <Label className="text-sm font-medium">Cube controls</Label>
+                      <div className="grid gap-3 rounded-md border border-border bg-secondary/45 p-3">
+                        <Label className="text-sm font-semibold">Cube controls</Label>
                         <RangeControl label="Cell Size" min={4} max={60} value={settings.cubeCellSize} onChange={(value) => updateSetting("cubeCellSize", value)} />
                         <RangeControl label="H. Spacing" min={50} max={180} value={settings.cubeHSpacing} suffix="%" onChange={(value) => updateSetting("cubeHSpacing", value)} />
                         <RangeControl label="V. Spacing" min={50} max={180} value={settings.cubeVSpacing} suffix="%" onChange={(value) => updateSetting("cubeVSpacing", value)} />
@@ -2097,11 +2185,11 @@ function App() {
                       </div>
                     )}
                     {settings.style === "disco" && (
-                      <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3">
-                        <Label className="text-sm font-medium">Disco controls</Label>
+                      <div className="grid gap-3 rounded-md border border-border bg-secondary/45 p-3">
+                        <Label className="text-sm font-semibold">Disco controls</Label>
                         <RangeControl label="Uniformity" min={0} max={100} value={settings.discoUniformity} suffix="%" onChange={(value) => updateSetting("discoUniformity", value)} />
-                        <div className="flex items-center justify-between gap-3 rounded-lg border bg-card/60 px-3 py-2">
-                          <Label className="text-sm">Pattern</Label>
+                        <div className="control-row">
+                          <Label className="text-sm font-medium">Pattern</Label>
                           <Button
                             variant="outline"
                             size="sm"
@@ -2115,7 +2203,7 @@ function App() {
                               setStatus("Disco pattern randomized");
                             }}
                           >
-                            Randomize ↻
+                            Randomize
                           </Button>
                         </div>
                       </div>
@@ -2124,9 +2212,9 @@ function App() {
                       <RangeControl label="Font Size" min={3} max={48} value={settings.fontSize} onChange={(value) => updateQualitySetting("fontSize", value)} />
                     ) : null}
                     <SelectControl label="Character Set" value={settings.characterSet} onChange={updateCharacterSet} options={[["standard", "Standard"], ["detailed", "Detailed"], ["minimal", "Minimal"], ["custom", "Custom"]]} />
-                    <div className="flex flex-col gap-1.5">
-                      <Label className="text-xs text-muted-foreground">Chars</Label>
-                      <Input aria-label="Chars" value={settings.characters} onChange={(event) => updateQualitySetting("characters", event.target.value)} />
+                    <div className="grid gap-2">
+                      <Label className="text-xs font-medium text-muted-foreground">Chars</Label>
+                      <Input aria-label="Chars" className="bg-secondary/65" value={settings.characters} onChange={(event) => updateQualitySetting("characters", event.target.value)} />
                     </div>
                     <SelectControl label="Blend Mode" value={settings.blendMode} onChange={(value) => updateSetting("blendMode", value)} options={[["source-over", "Normal"], ["overlay", "Overlay"], ["color-dodge", "Color Dodge"], ["screen", "Screen"], ["lighter", "Lighter"]]} />
                     <RangeControl label="Char Opacity" min={0} max={100} value={settings.charOpacity} suffix="%" onChange={(value) => updateSetting("charOpacity", value)} />
@@ -2137,30 +2225,28 @@ function App() {
                     </div>
                   </ControlCard>
 
-                  <ControlCard title="Background" description="Source backdrop, blur, transparency, and image modes.">
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between gap-3">
-                        <Label className="text-sm font-medium">Background gallery</Label>
-                        <Badge variant="outline">34 curated backgrounds</Badge>
-                      </div>
-                      <div className="grid max-h-48 grid-cols-2 gap-2 overflow-y-auto pr-1">
-                        {BACKGROUND_PRESETS.map((background) => (
-                          <Button
-                            key={background.id}
-                            variant="outline"
-                            size="sm"
-                            className="justify-start gap-2"
-                            onClick={() => loadBackgroundPreset(background.id)}
-                          >
-                            <span
-                              aria-hidden="true"
-                              className="size-5 rounded-sm border"
-                              style={{ background: `linear-gradient(135deg, ${background.colors.join(", ")})` }}
-                            />
-                            {background.label}
-                          </Button>
-                        ))}
-                      </div>
+                  <ControlCard eyebrow="04 background" title="Background gallery" description="Backdrop source, blur, and transparency.">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <Label className="text-sm font-semibold">Gallery</Label>
+                      <Badge variant="outline">34 curated backgrounds</Badge>
+                    </div>
+                    <div className="grid max-h-56 grid-cols-2 gap-2 overflow-y-auto pr-1">
+                      {BACKGROUND_PRESETS.map((background) => (
+                        <Button
+                          key={background.id}
+                          variant="outline"
+                          size="sm"
+                          className="justify-start gap-2"
+                          onClick={() => loadBackgroundPreset(background.id)}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className="size-5 rounded-sm border border-border"
+                            style={{ background: `linear-gradient(135deg, ${background.colors.join(", ")})` }}
+                          />
+                          {background.label}
+                        </Button>
+                      ))}
                     </div>
                     <Separator />
                     <SelectControl label="Mode" value={settings.backgroundMode} onChange={(value) => updateSetting("backgroundMode", value)} options={[["blur", "Blurred Image"], ["solid", "Solid Black"], ["original", "Original Image"], ["none", "None (Transparent)"]]} />
@@ -2168,12 +2254,12 @@ function App() {
                     <RangeControl label="Opacity" min={0} max={100} value={settings.backgroundOpacity} suffix="%" onChange={(value) => updateSetting("backgroundOpacity", value)} />
                   </ControlCard>
 
-                  <ControlCard title="Intensity" description="Luminance, coverage, threshold, and color response.">
-                    <div className="flex flex-col gap-2">
+                  <ControlCard eyebrow="05 calibration" title="Intensity" description="Coverage, edge response, tone, and gamma.">
+                    <div className="grid gap-2">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <Label className="text-xs text-muted-foreground">Quality Presets</Label>
+                        <Label className="text-xs font-medium text-muted-foreground">Quality Presets</Label>
                         <Badge variant="outline" className="max-w-full shrink-0">
-                          Active quality preset: {QUALITY_PRESETS[settings.qualityPreset]?.label || "Custom"}
+                          Active quality preset: {qualityLabel}
                         </Badge>
                       </div>
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
@@ -2204,8 +2290,8 @@ function App() {
                   </ControlCard>
                 </TabsContent>
 
-                <TabsContent value="motion" className="flex flex-col gap-4">
-                  <ControlCard title="Interactive Motion" description="Persistent particles with spring-back, turbulence, pointer force, and trails.">
+                <TabsContent value="motion" className="grid gap-4">
+                  <ControlCard eyebrow="06 motion" title="Interactive Motion" description="Pointer field, idle movement, turbulence, and trails.">
                     <ToggleControl label="Enable Interaction" checked={settings.interactiveMotion} onChange={(value) => updateSetting("interactiveMotion", value)} />
                     <div className="grid grid-cols-2 gap-3">
                       <SelectControl label="Behavior" value={settings.pointerMode} onChange={(value) => updateSetting("pointerMode", value)} options={POINTER_MOTION_OPTIONS} />
@@ -2228,7 +2314,7 @@ function App() {
                     </div>
                   </ControlCard>
 
-                  <ControlCard title="Animation" description="Animated ASCII timing and reveal styles.">
+                  <ControlCard eyebrow="07 animation" title="Animation" description="ASCII timing, reveal style, and intensity.">
                     <ToggleControl label="Animated ASCII" checked={settings.animated} onChange={(value) => updateSetting("animated", value)} />
                     <SelectControl label="Animation Style" value={settings.animationStyle} onChange={(value) => updateSetting("animationStyle", value)} options={[["wave", "Wave"], ["cascade-lr", "Cascade Left to Right"], ["cascade-rl", "Cascade Right to Left"], ["cascade-tb", "Cascade Top to Bottom"], ["reveal", "Reveal"], ["pulse", "Pulse"]]} />
                     <RangeControl label="Speed" min={1} max={8} step={0.1} value={Number((settings.animationSpeed / 1000).toFixed(1))} suffix="s" onChange={(value) => updateSetting("animationSpeed", value * 1000)} />
@@ -2236,9 +2322,11 @@ function App() {
                     <RangeControl label="Randomness" min={0} max={100} value={settings.animationRandomness} suffix="%" onChange={(value) => updateSetting("animationRandomness", value)} />
                   </ControlCard>
 
-                  <ControlCard title="Lights" description="Place lights, shape glow, and push the ASCII surface.">
-                    <ToggleControl label="Enable Lights" checked={settings.lights} onChange={toggleLights} />
-                    <Badge variant="outline" className="w-fit">{lights.length} / 4</Badge>
+                  <ControlCard eyebrow="08 lighting" title="Lights" description="Place and shape up to four glow sources.">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <ToggleControl label="Enable Lights" checked={settings.lights} onChange={toggleLights} />
+                      <Badge variant="outline" className="w-fit">{lights.length} / 4</Badge>
+                    </div>
                     <div className="grid grid-cols-2 gap-2">
                       <Button variant={canvasTool === "light" ? "secondary" : "outline"} onClick={canvasTool === "light" ? clearCanvasTool : activateLightTool}>
                         <SparklesIcon data-icon="inline-start" />
@@ -2255,7 +2343,7 @@ function App() {
                     </div>
                     <div
                       data-light-pad
-                      className="relative h-28 touch-none overflow-hidden rounded-lg border bg-muted/40"
+                      className="relative h-32 touch-none overflow-hidden rounded-md border border-border bg-secondary/45"
                       onPointerDown={handleLightPadPointerDown}
                       onPointerMove={moveLightPadDrag}
                       onPointerUp={finishLightPadDrag}
@@ -2266,7 +2354,7 @@ function App() {
                           key={light.id}
                           type="button"
                           aria-label={`Select light ${index + 1}`}
-                          className="absolute size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border bg-primary text-[10px] font-semibold text-primary-foreground shadow-[0_0_28px_hsl(var(--primary))]"
+                          className="absolute size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border border-primary bg-primary text-[10px] font-semibold text-primary-foreground shadow-lg"
                           style={{ left: `${light.x * 100}%`, top: `${light.y * 100}%` }}
                           onPointerDown={(event) => startLightPadDrag(event, light, index)}
                           onPointerMove={moveLightPadDrag}
@@ -2280,15 +2368,12 @@ function App() {
                           {index + 1}
                         </button>
                       )) : (
-                        <div className="grid h-full place-items-center px-4 text-center text-xs text-muted-foreground">Tap to add a light</div>
+                        <div className="grid h-full place-items-center px-4 text-center text-xs text-muted-foreground">No lights placed</div>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Tap to add a light. Drag dots to move. Click a dot to select. Up to 4 lights.
-                    </p>
                     {settings.lights && Number(settings.fontSize || 0) <= 12 ? (
-                      <p className="text-xs text-muted-foreground">
-                        Bumped font size to 12 - lighting at very small font sizes can stall the render. You can lower it back, but expect lag.
+                      <p className="text-xs leading-5 text-muted-foreground">
+                        Font size was raised to 12 for lighting performance.
                       </p>
                     ) : null}
                     {activeLight ? (
@@ -2306,7 +2391,7 @@ function App() {
                     )}
                   </ControlCard>
 
-                  <ControlCard title="Mask" description="Restrict ASCII art to drawn areas while preserving the background.">
+                  <ControlCard eyebrow="09 mask" title="Mask" description="Draw, invert, and edit the visible glyph area.">
                     <ToggleControl label="Enable Mask" checked={settings.mask} onChange={toggleMask} />
                     <div className="flex flex-wrap items-center gap-2">
                       <Button variant={canvasTool === "mask" ? "secondary" : "outline"} onClick={canvasTool === "mask" ? clearCanvasTool : activateMaskTool}>
@@ -2326,8 +2411,8 @@ function App() {
                   </ControlCard>
                 </TabsContent>
 
-                <TabsContent value="finish" className="flex flex-col gap-4">
-                  <ControlCard title="Export" description="Choose output format, resolution, and animation timing.">
+                <TabsContent value="finish" className="grid gap-4">
+                  <ControlCard eyebrow="10 export" title="Export" description="Format, resolution, duration, and frame rate.">
                     <div className="grid grid-cols-2 gap-3">
                       <SelectControl label="Format" value={settings.exportFormat} onChange={(value) => updateSetting("exportFormat", value)} options={EXPORT_FORMATS} />
                       <SelectControl label="Resolution" value={settings.exportScale} onChange={(value) => updateSetting("exportScale", Number(value))} options={[["1", "1x"], ["2", "2x"], ["3", "3x"], ["4", "4x"]]} />
@@ -2340,12 +2425,12 @@ function App() {
                     </Button>
                   </ControlCard>
 
-                  <ControlCard title="Post-processing" description="Stack finish passes for a production export look.">
+                  <ControlCard eyebrow="11 finish stack" title="Post-processing" description="Final passes applied before export.">
                     <div className="grid gap-2">{effectControls}</div>
                     {settings.effects.colorOverlay && (
                       <>
-                        <div className="flex flex-col gap-1.5">
-                          <Label className="text-xs text-muted-foreground">Color</Label>
+                        <div className="grid gap-2">
+                          <Label className="text-xs font-medium text-muted-foreground">Color</Label>
                           <Input aria-label="Color" type="color" value={settings.effects.color} onChange={(event) => updateEffect("color", event.target.value)} />
                         </div>
                         <RangeControl label="Color Opacity" min={0} max={100} value={settings.effects.colorOpacity} suffix="%" onChange={(value) => updateEffect("colorOpacity", value)} />
@@ -2354,16 +2439,16 @@ function App() {
                     )}
                   </ControlCard>
 
-                  <ControlCard title="Crop & Rotate" description="Full crop surface with rotate and save controls.">
+                  <ControlCard eyebrow="12 framing" title="Crop & Rotate" description="Adjust the source frame before rendering.">
                     <Button variant="outline" onClick={() => setModal("crop")}><CropIcon data-icon="inline-start" />Crop / Rotate</Button>
                   </ControlCard>
 
-                  <Card id="changelog">
-                    <CardHeader>
-                      <CardTitle>Changelog</CardTitle>
-                      <CardDescription>Background gallery, crop editor, masks, lights, animated exports, and post-processing updates are tracked here.</CardDescription>
-                    </CardHeader>
-                  </Card>
+                  <section id="changelog" className="mission-panel p-4">
+                    <div className="grid gap-1">
+                      <h2 className="text-base font-semibold">Changelog</h2>
+                      <p className="text-sm leading-6 text-muted-foreground">Background gallery, crop editor, masks, lights, animated exports, and post-processing updates.</p>
+                    </div>
+                  </section>
                 </TabsContent>
               </Tabs>
             </div>
