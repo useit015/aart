@@ -1,19 +1,29 @@
 import { describe, expect, it } from "vitest";
 import {
   CHAR_SETS,
+  CHARSET_PRESETS,
+  GRID_QUALITY_PRESETS,
+  PALETTE_MODES,
   QUALITY_PRESET_ORDER,
   QUALITY_PRESETS,
   QUALITY_PRESET_SETTING_KEYS,
   adjustColorChannel,
+  applyToneCurve,
   applyQualityPreset,
   buildAsciiCells,
   computeAnimationTransform,
+  correctedRows,
   createDefaultSettings,
+  decodeAsciiGrid,
   luminanceToGlyph,
   matchesQualityPreset,
+  packRgb565,
+  paletteColorFromRgb,
   resolveBackgroundBlurFrame,
   resolveCellMetrics,
-  resolvePostProcessingPlan
+  resolvePostProcessingPlan,
+  rgbToLuminance,
+  sampleAsciiGrid
 } from "../src/ascii.js";
 
 describe("ASCII renderer primitives", () => {
@@ -99,6 +109,71 @@ describe("ASCII renderer primitives", () => {
 
     expect(luminanceToGlyph(64, settings)).toBe("+");
     expect(adjustColorChannel(64, settings)).toBe(64);
+  });
+
+  it("corrects sampled grid rows using source aspect and cell aspect", () => {
+    expect(correctedRows(1920, 1080, 144)).toBe(45);
+    expect(correctedRows(1080, 1920, 96)).toBe(95);
+    expect(correctedRows(0, 1920, 96)).toBe(1);
+  });
+
+  it("matches locked luminance and rgb565 packing values", () => {
+    expect(rgbToLuminance(0, 0, 0)).toBe(0);
+    expect(rgbToLuminance(255, 255, 255)).toBe(255);
+    expect(rgbToLuminance(255, 0, 0)).toBe(54);
+    expect(rgbToLuminance(0, 255, 0)).toBe(182);
+    expect(rgbToLuminance(0, 0, 255)).toBe(18);
+    expect(packRgb565(255, 0, 0)).toBe(0xf800);
+    expect(packRgb565(0, 255, 0)).toBe(0x07e0);
+    expect(packRgb565(0, 0, 255)).toBe(0x001f);
+  });
+
+  it("applies tone curve in brightness contrast gamma invert order", () => {
+    expect(applyToneCurve(128, { brightness: 10, contrast: 50, gamma: 100, invert: false })).toBe(166);
+    expect(applyToneCurve(128, { brightness: 10, contrast: 50, gamma: 200, invert: false })).toBe(206);
+    expect(applyToneCurve(128, { brightness: 10, contrast: 50, gamma: 100, invert: true })).toBe(89);
+  });
+
+  it("maps palette modes from source color or toned luminance", () => {
+    expect(PALETTE_MODES.map((mode) => mode.id)).toEqual(["source", "graphite", "mint", "amber", "duotone", "mono"]);
+    expect(paletteColorFromRgb({ r: 12, g: 34, b: 56 }, 128, "source")).toBe("rgb(12, 34, 56)");
+    expect(paletteColorFromRgb({ r: 12, g: 34, b: 56 }, 255, "mono")).toBe("#ffffff");
+    expect(paletteColorFromRgb({ r: 12, g: 34, b: 56 }, 0, "graphite")).toBe("#0f1112");
+  });
+
+  it("samples and decodes still-image ascii grids without mutating sampled data", () => {
+    const imageData = {
+      data: new Uint8ClampedArray([
+        255, 0, 0, 255, 0, 255, 0, 255,
+        0, 0, 255, 255, 255, 255, 255, 255
+      ])
+    };
+    const settings = {
+      ...createDefaultSettings(),
+      gridQuality: "balanced",
+      gridColumns: 2,
+      paletteMode: "source",
+      characters: " .#",
+      characterSet: "custom",
+      coverage: 100,
+      density: 0,
+      edgeEmphasis: 0,
+      brightness: 0,
+      contrast: 100,
+      gamma: 100
+    };
+    const grid = sampleAsciiGrid(imageData, 2, 2, settings);
+    const before = JSON.stringify(grid.cells);
+    const decoded = decodeAsciiGrid(grid, settings);
+
+    expect(Object.keys(GRID_QUALITY_PRESETS)).toEqual(["soft", "balanced", "detailed", "ultra"]);
+    expect(CHARSET_PRESETS.map((preset) => preset.id)).toEqual(["standard", "detailed", "blocks", "dots", "geometric"]);
+    expect(grid.cols).toBe(2);
+    expect(grid.rows).toBe(2);
+    expect(grid.cells[0]).toMatchObject({ r: 255, g: 0, b: 0, a: 255, luma: 54 });
+    expect(decoded).toHaveLength(4);
+    expect(decoded[0]).toMatchObject({ glyph: " ", color: "rgb(255, 0, 0)" });
+    expect(JSON.stringify(grid.cells)).toBe(before);
   });
 
   it("applies quality presets without touching unrelated settings", () => {

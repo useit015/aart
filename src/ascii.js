@@ -4,6 +4,39 @@ export const CHAR_SETS = {
   minimal: "@%#*+=-:. "
 };
 
+export const GRID_QUALITY_PRESETS = {
+  soft: { label: "Soft", columns: 96, fontSize: 14 },
+  balanced: { label: "Balanced", columns: 144, fontSize: 11 },
+  detailed: { label: "Detailed", columns: 192, fontSize: 8 },
+  ultra: { label: "Ultra", columns: 240, fontSize: 7 }
+};
+
+export const GRID_QUALITY_ORDER = ["soft", "balanced", "detailed", "ultra"];
+
+export const PALETTE_MODES = [
+  { id: "source", label: "Source", swatch: "linear-gradient(135deg, #ff2a7f, #21d4fd)" },
+  { id: "graphite", label: "Graphite", swatch: "#70767c" },
+  { id: "mint", label: "Mint", swatch: "#7dc495" },
+  { id: "amber", label: "Amber", swatch: "#e1b35a" },
+  { id: "duotone", label: "Duotone", swatch: "linear-gradient(135deg, #17303d, #f4eed2)" },
+  { id: "mono", label: "Mono", swatch: "#ffffff" }
+];
+
+export const CHARSET_PRESETS = [
+  { id: "standard", label: "Standard", value: CHAR_SETS.standard },
+  { id: "detailed", label: "Detailed", value: CHAR_SETS.detailed },
+  { id: "blocks", label: "Blocks", value: " ░▒▓█" },
+  { id: "dots", label: "Dots", value: " .·•●" },
+  { id: "geometric", label: "Geometric", value: " ▏▎▍▌▋▊▉█" }
+];
+
+const DEFAULT_CELL_ASPECT = 1.8;
+const GRAPHITE_PALETTE = ["#0f1112", "#232729", "#3d4347", "#70767c", "#b8c0c8", "#edf2f6"];
+const MINT_PALETTE = ["#07100b", "#11331f", "#1f5d39", "#3e9061", "#7dc495", "#dff5e4"];
+const AMBER_PALETTE = ["#110a03", "#392112", "#72401d", "#b86d28", "#e1b35a", "#fff1c4"];
+const DUOTONE_PALETTE = ["#081015", "#17303d", "#2d5967", "#5c8d8f", "#b8c9b1", "#f4eed2"];
+const MONO_PALETTE = ["#101214", "#2f3438", "#5f676f", "#97a1ab", "#d7dfe8", "#ffffff"];
+
 export const QUALITY_PRESET_SETTING_KEYS = [
   "fontSize",
   "characterSet",
@@ -136,6 +169,10 @@ export function createDefaultSettings() {
     discoRandomize: true,
     discoSeed: 0,
     qualityPreset: "balanced",
+    gridQuality: "balanced",
+    gridColumns: GRID_QUALITY_PRESETS.balanced.columns,
+    paletteMode: "source",
+    charsetPreset: "standard",
     fontSize: 11,
     characterSet: "standard",
     characters: CHAR_SETS.standard,
@@ -240,6 +277,126 @@ export function luminanceToGlyph(luminance, settings = createDefaultSettings()) 
 export function adjustLuminance(r, g, b, settings) {
   const weighted = 0.2126 * r + 0.7152 * g + 0.0722 * b;
   return Math.max(0, Math.min(255, weighted));
+}
+
+export function correctedRows(sourceWidth, sourceHeight, cols, cellAspect = DEFAULT_CELL_ASPECT) {
+  if (sourceWidth <= 0 || sourceHeight <= 0 || cols <= 0 || cellAspect <= 0) return 1;
+  return Math.max(1, roundTiesToEven((sourceHeight / sourceWidth) * cols / cellAspect));
+}
+
+export function rgbToLuminance(red, green, blue) {
+  return roundTiesToEven(0.2126 * red + 0.7152 * green + 0.0722 * blue);
+}
+
+export function packRgb565(red, green, blue) {
+  const r = roundRatioTiesEven(red * 31, 255);
+  const g = roundRatioTiesEven(green * 63, 255);
+  const b = roundRatioTiesEven(blue * 31, 255);
+  return (r << 11) | (g << 5) | b;
+}
+
+export function applyToneCurve(luminance, settings = createDefaultSettings()) {
+  const brightness = Number(settings.brightness || 0);
+  const contrast = Number(settings.contrast || 0);
+  const gammaValue = Number(settings.gamma ?? 100);
+  const gamma = clamp(gammaValue > 10 ? gammaValue / 100 : gammaValue, 0.2, 4);
+  let normalized = clamp(luminance, 0, 255) / 255;
+  normalized = clamp(normalized + brightness / 100, 0, 1);
+  normalized = clamp((normalized - 0.5) * (1 + contrast / 100) + 0.5, 0, 1);
+  normalized = clamp(Math.pow(normalized, 1 / gamma), 0, 1);
+  if (settings.invert) normalized = 1 - normalized;
+  return Math.round(normalized * 255);
+}
+
+export function paletteColorFromRgb(color, tonedLuminance, paletteMode = "source") {
+  if (paletteMode === "source") {
+    return `rgb(${clamp(Math.round(color.r || 0), 0, 255)}, ${clamp(Math.round(color.g || 0), 0, 255)}, ${clamp(Math.round(color.b || 0), 0, 255)})`;
+  }
+
+  const normalized = clamp(tonedLuminance, 0, 255) / 255;
+  if (paletteMode === "graphite") return samplePalette(GRAPHITE_PALETTE, normalized);
+  if (paletteMode === "mint") return samplePalette(MINT_PALETTE, normalized);
+  if (paletteMode === "amber") return samplePalette(AMBER_PALETTE, normalized);
+  if (paletteMode === "duotone") return samplePalette(DUOTONE_PALETTE, normalized);
+  if (paletteMode === "mono") return samplePalette(MONO_PALETTE, normalized);
+  return paletteColorFromRgb(color, tonedLuminance, "source");
+}
+
+export function sampleAsciiGrid(imageData, width, height, settings = createDefaultSettings()) {
+  const targetCols = clampInteger(settings.gridColumns || width, 1, Math.max(1, width));
+  const targetRows = clampInteger(
+    settings.gridRows || (targetCols === width ? height : correctedRows(width, height, targetCols)),
+    1,
+    Math.max(1, height)
+  );
+  const cells = [];
+
+  for (let row = 0; row < targetRows; row += 1) {
+    for (let col = 0; col < targetCols; col += 1) {
+      cells[row * targetCols + col] = sampleGridCell(imageData, width, height, col, row, targetCols, targetRows);
+    }
+  }
+
+  for (let row = 0; row < targetRows; row += 1) {
+    for (let col = 0; col < targetCols; col += 1) {
+      const index = row * targetCols + col;
+      const sample = cells[index];
+      const right = cells[row * targetCols + Math.min(targetCols - 1, col + 1)] || sample;
+      const down = cells[Math.min(targetRows - 1, row + 1) * targetCols + col] || sample;
+      const left = cells[row * targetCols + Math.max(0, col - 1)] || sample;
+      const up = cells[Math.max(0, row - 1) * targetCols + col] || sample;
+      cells[index] = {
+        ...sample,
+        edge: Math.max(
+          Math.abs(sample.luma - right.luma),
+          Math.abs(sample.luma - down.luma),
+          Math.abs(sample.luma - left.luma),
+          Math.abs(sample.luma - up.luma)
+        )
+      };
+    }
+  }
+
+  return {
+    cols: targetCols,
+    rows: targetRows,
+    width,
+    height,
+    cells
+  };
+}
+
+export function decodeAsciiGrid(grid, settings = createDefaultSettings()) {
+  if (!grid?.cells?.length || !grid.cols || !grid.rows) return [];
+  const coverage = Number(settings.coverage || 100) / 100;
+  const density = Number(settings.density || 0) / 100;
+  const edgeEmphasis = Number(settings.edgeEmphasis || 0) / 100;
+  const threshold = 255 * (1 - coverage) + density * 45;
+  const toneSettings = {
+    ...settings,
+    contrast: Number(settings.contrast ?? 100) - 100
+  };
+  const cells = [];
+
+  grid.cells.forEach((sample, index) => {
+    const toned = applyToneCurve(sample.luma, toneSettings);
+    const luminance = clamp(toned - (sample.edge || 0) * edgeEmphasis, 0, 255);
+    if (sample.a <= 8 || luminance > 255 - threshold) return;
+
+    const col = index % grid.cols;
+    const row = Math.floor(index / grid.cols);
+    cells.push({
+      x: col / grid.cols,
+      y: row / grid.rows,
+      w: 1 / grid.cols,
+      h: 1 / grid.rows,
+      luminance,
+      color: paletteColorFromRgb(sample, luminance, settings.paletteMode || "source"),
+      glyph: glyphFromTonedLuminance(luminance, settings)
+    });
+  });
+
+  return cells;
 }
 
 export function adjustColorChannel(value, settings) {
@@ -365,6 +522,83 @@ function sampleAsciiCell(imageData, width, height, x, y, cellW, cellH, settings)
     a: count ? sumA / count : 0,
     luminance: sumLuminance / divisor
   };
+}
+
+function sampleGridCell(imageData, width, height, col, row, cols, rows) {
+  const xStart = Math.floor((col / cols) * width);
+  const xEnd = Math.max(xStart + 1, Math.ceil(((col + 1) / cols) * width));
+  const yStart = Math.floor((row / rows) * height);
+  const yEnd = Math.max(yStart + 1, Math.ceil(((row + 1) / rows) * height));
+  let sumR = 0;
+  let sumG = 0;
+  let sumB = 0;
+  let sumA = 0;
+  let weight = 0;
+  let count = 0;
+
+  for (let y = yStart; y < Math.min(height, yEnd); y += 1) {
+    for (let x = xStart; x < Math.min(width, xEnd); x += 1) {
+      const index = (y * width + x) * 4;
+      const alphaByte = imageData.data[index + 3] ?? 255;
+      const alpha = alphaByte / 255;
+      sumR += (imageData.data[index] ?? 0) * alpha;
+      sumG += (imageData.data[index + 1] ?? 0) * alpha;
+      sumB += (imageData.data[index + 2] ?? 0) * alpha;
+      sumA += alphaByte;
+      weight += alpha;
+      count += 1;
+    }
+  }
+
+  const divisor = weight || count || 1;
+  const r = Math.round(sumR / divisor);
+  const g = Math.round(sumG / divisor);
+  const b = Math.round(sumB / divisor);
+
+  return {
+    r,
+    g,
+    b,
+    a: count ? Math.round(sumA / count) : 0,
+    luma: rgbToLuminance(r, g, b),
+    rgb565: packRgb565(r, g, b),
+    edge: 0
+  };
+}
+
+function glyphFromTonedLuminance(luminance, settings) {
+  const chars = resolveCharacters(settings);
+  if (chars.length === 1) return chars[0] || " ";
+  const index = Math.max(0, Math.min(chars.length - 1, Math.round((clamp(luminance, 0, 255) / 255) * (chars.length - 1))));
+  return chars[index] || chars[chars.length - 1] || " ";
+}
+
+function samplePalette(palette, normalized) {
+  const index = Math.round(clamp(normalized, 0, 1) * (palette.length - 1));
+  return palette[index] || palette[palette.length - 1] || "#ffffff";
+}
+
+function clampInteger(value, min, max) {
+  return Math.max(min, Math.min(max, Math.round(Number(value) || 0)));
+}
+
+function roundTiesToEven(value) {
+  const floor = Math.floor(value);
+  const fraction = value - floor;
+  const epsilon = 1e-12;
+  if (Math.abs(fraction - 0.5) <= epsilon) {
+    return floor % 2 === 0 ? floor : floor + 1;
+  }
+  return fraction < 0.5 ? floor : floor + 1;
+}
+
+function roundRatioTiesEven(numerator, denominator) {
+  const quotient = Math.floor(numerator / denominator);
+  const remainder = numerator % denominator;
+  const doubled = remainder * 2;
+  if (doubled > denominator) return quotient + 1;
+  if (doubled < denominator || quotient % 2 === 0) return quotient;
+  return quotient + 1;
 }
 
 export function clamp(value, min, max) {
