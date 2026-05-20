@@ -293,8 +293,9 @@
     position: absolute;
     inset: 0;
     display: grid;
-    place-items: center;
     gap: 0.55rem;
+    align-content: center;
+    justify-items: center;
     border: 0;
     background: transparent;
     color: var(--foreground);
@@ -734,8 +735,16 @@
   }
 
   @media (max-width: 720px) {
+    .studio-stage,
+    .studio-shell.inspector-hidden .studio-stage {
+      min-height: 56vh;
+      padding: 4.5rem 1rem 3.5rem;
+    }
+
     .stage-topbar {
-      grid-template-columns: auto auto;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
     }
 
     .stage-title {
@@ -747,17 +756,11 @@
     }
 
     .stage-canvas-wrap {
-      min-height: 54vh;
+      min-height: 34vh;
     }
 
     .stage-upload {
-      left: 1rem;
-      justify-content: flex-end;
-    }
-
-    .stage-upload [data-slot="button"] {
-      flex: 1;
-      min-width: 0;
+      display: none;
     }
 
     .stage-status {

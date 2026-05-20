@@ -2421,7 +2421,6 @@ function App() {
         <div className="grid gap-2 sm:grid-cols-2">
           <TelemetryPill label="kind" value={sourceKind.startsWith("video") ? "Video source" : "Image source"} />
           <TelemetryPill label="resolution" value={sourceResolutionLabel} />
-          <TelemetryPill label="status" value={status} />
         </div>
       </ControlCard>
       {sourceKind.startsWith("video") ? (
@@ -2724,22 +2723,24 @@ function App() {
           ) : null}
         </div>
 
-        <div className="stage-status">
-          {sourceKind.startsWith("video") ? (
+        {sourceUrl ? (
+          <div className="stage-status">
+            {sourceKind.startsWith("video") ? (
             <>
               <button type="button" onClick={isPlaying ? stopVideo : playVideo}>{isPlaying ? "PAUSE" : "PLAY"}</button>
               <span>|</span>
               <button type="button" onClick={replayVideo}>REPLAY</button>
             </>
-          ) : (
-            <span>{status}</span>
-          )}
-        </div>
+            ) : (
+              <span>{status}</span>
+            )}
+          </div>
+        ) : null}
 
         <div className="stage-upload">
           <Button onClick={() => fileRef.current?.click()}>
             <ImageUpIcon data-icon="inline-start" />
-            Upload SVG / Media
+            Upload Media
           </Button>
           <Button variant="outline" onClick={exportCanvas} disabled={exporting}>
             <DownloadIcon data-icon="inline-start" />

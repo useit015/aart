@@ -111,7 +111,7 @@ describe("Glyph Studio app shell", () => {
       fireEvent.change(fileInput, { target: { files: [videoFile] } });
       const video = container.querySelector("video");
 
-      expect(screen.getByText("clip.mp4 loaded")).toBeInTheDocument();
+      expect(screen.getByText(/clip\.mp4 \/ Characters \/ PNG 2x/)).toBeInTheDocument();
       expect(screen.getByText("Video source")).toBeInTheDocument();
       expect(screen.getByText("Video Transport")).toBeInTheDocument();
       expect(screen.queryByText("Unsupported file type")).not.toBeInTheDocument();
