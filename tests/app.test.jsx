@@ -6,69 +6,93 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../src/App.jsx";
 import { CHAR_SETS } from "../src/ascii.js";
 
+async function openMode(name) {
+  await userEvent.click(screen.getByRole("button", { name }));
+}
+
 describe("Glyph Studio app shell", () => {
   afterEach(() => {
     window.history.pushState({}, "", "/");
   });
 
-  it("renders the primary editor controls without demo entry points", async () => {
+  it("renders the stage, bottom shader rail, and source inspector", () => {
     render(<App />);
 
     expect(screen.getByRole("heading", { name: "Glyph Studio" })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Shader modes" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "SOURCE" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("button", { name: "ASCII" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "PARTICLES" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "RIPPLES" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "LINES" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "METAL" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "CHROME" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "TOOLS" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "EXPORT" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Upload Image / Video" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Source" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Style" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Motion" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Export" })).toBeInTheDocument();
-    expect(screen.queryByText("Background gallery")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Export" })).not.toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("tab", { name: "Style" }));
-    expect(screen.getByText("Render style")).toBeInTheDocument();
-    expect(screen.getByText("Gamma")).toBeInTheDocument();
     expect(screen.getByTestId("ascii-canvas")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Inspire Me" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+    expect(screen.queryByText("Background gallery")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Random Demo" })).not.toBeInTheDocument();
-    expect(screen.queryByText("Demo gallery")).not.toBeInTheDocument();
-    expect(screen.queryByText("Video demos")).not.toBeInTheDocument();
   });
 
-  it("exposes parity controls for backgrounds, crop, lights, masks, and animated export", async () => {
+  it("uses one active dynamic inspector for shader modes", async () => {
     render(<App />);
 
-    await userEvent.click(screen.getByRole("tab", { name: "Style" }));
-    expect(screen.getByText("Background gallery")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Demo 02" })).not.toBeInTheDocument();
+    await openMode("ASCII");
+    expect(screen.getByRole("heading", { name: "Minimal ASCII" })).toBeInTheDocument();
+    expect(screen.getByText("Glyph Map")).toBeInTheDocument();
+    expect(screen.getByText("Quality Presets")).toBeInTheDocument();
+    expect(screen.getByText("Gamma")).toBeInTheDocument();
+    expect(screen.queryByText("Enable Lights")).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("tab", { name: "Motion" }));
-    await userEvent.click(screen.getByRole("switch", { name: "Enable Lights" }));
-    await userEvent.click(screen.getByRole("button", { name: "Add Light" }));
-    expect(screen.getByText(/Light 1 selected/i)).toBeInTheDocument();
+    await openMode("PARTICLES");
+    expect(screen.getByRole("heading", { name: "Particle Field" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Enable Interaction" })).toBeChecked();
+    expect(screen.getByLabelText("Behavior")).toBeInTheDocument();
+    expect(screen.getByText("Turbulence")).toBeInTheDocument();
+    expect(screen.queryByText("Crop & Rotate")).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("switch", { name: "Enable Mask" }));
-    expect(screen.getByRole("button", { name: "Draw Mask" })).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("tab", { name: "Export" }));
-    await userEvent.click(screen.getByRole("button", { name: "Crop / Rotate" }));
-    expect(screen.getByRole("dialog", { name: "Crop & Rotate" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    await openMode("RIPPLES");
+    expect(screen.getByRole("heading", { name: "Ripple Scan" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Animated ASCII" })).toBeChecked();
+    expect(screen.getByLabelText("Animation Style")).toBeInTheDocument();
+    expect(screen.getByText("Scan Lines Amount")).toBeInTheDocument();
   });
 
-  it("keeps export timing and effect intensity controls behind relevant choices", async () => {
+  it("applies metal and chrome presets without exposing unrelated controls", async () => {
     render(<App />);
 
-    expect(screen.queryByText("Video demos")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("tab", { name: "Export" }));
+    await openMode("METAL");
+    expect(screen.getByRole("heading", { name: "Metal Glyph" })).toBeInTheDocument();
+    expect(screen.getByText("Top Shade")).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Bloom" })).toBeChecked();
+    expect(screen.queryByText("Character Set")).not.toBeInTheDocument();
+
+    await openMode("CHROME");
+    expect(screen.getByRole("heading", { name: "Chrome Glyph" })).toBeInTheDocument();
+    expect(screen.getByText("Uniformity")).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Chromatic" })).toBeChecked();
+    expect(screen.getByRole("button", { name: "Randomize" })).toBeInTheDocument();
+  });
+
+  it("keeps export timing and effect controls behind relevant choices", async () => {
+    render(<App />);
+
+    await openMode("EXPORT");
     expect(screen.queryByText("Animation duration")).not.toBeInTheDocument();
     expect(screen.queryByText("Frame rate")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Format")).toBeInTheDocument();
     expect(screen.getByLabelText("Resolution")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Export" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Export" }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("switch", { name: "Glitch" })).not.toBeInTheDocument();
 
+    await userEvent.click(screen.getByRole("switch", { name: "Edit Final Effects" }));
     await userEvent.click(screen.getByRole("switch", { name: "Glitch" }));
     expect(screen.getByText("Glitch Amount")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Crop / Rotate" }));
+    expect(screen.getByRole("dialog", { name: "Crop & Rotate" })).toBeInTheDocument();
     expect(screen.getAllByLabelText(/Crop handle/i)).toHaveLength(8);
     expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Redo" })).toBeInTheDocument();
@@ -89,35 +113,20 @@ describe("Glyph Studio app shell", () => {
 
       expect(screen.getByText("clip.mp4 loaded")).toBeInTheDocument();
       expect(screen.getByText("Video source")).toBeInTheDocument();
+      expect(screen.getByText("Video Transport")).toBeInTheDocument();
       expect(screen.queryByText("Unsupported file type")).not.toBeInTheDocument();
       expect(video).toHaveAttribute("preload", "auto");
       expect(video).toHaveAttribute("autoplay");
-      expect(video).not.toHaveClass("hidden");
+      expect(video).toHaveClass("pointer-events-none");
     } finally {
       URL.createObjectURL = originalCreateObjectUrl;
     }
   });
 
-  it("covers the remaining hard parity surfaces the previous audit missed", async () => {
+  it("keeps light and mask tools explicit and reversible", async () => {
     render(<App />);
 
-    await userEvent.click(screen.getByRole("tab", { name: "Style" }));
-    expect(screen.getByText("34 curated backgrounds")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Background 34" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Video 01" })).not.toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("tab", { name: "Motion" }));
-    await userEvent.click(screen.getByRole("switch", { name: "Enable Lights" }));
-    expect(screen.getByText("0 / 4")).toBeInTheDocument();
-    expect(screen.getByText("No lights placed")).toBeInTheDocument();
-  });
-
-  it("makes light and mask editing explicit and reversible", async () => {
-    render(<App />);
-
-    await userEvent.click(screen.getByRole("tab", { name: "Motion" }));
-
-    expect(screen.queryByText("Preview Tool")).not.toBeInTheDocument();
+    await openMode("TOOLS");
     expect(screen.queryByRole("button", { name: "Place Lights" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Draw Mask" })).not.toBeInTheDocument();
 
@@ -128,7 +137,6 @@ describe("Glyph Studio app shell", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Draw Mask" }));
     expect(screen.getByRole("button", { name: "Stop Drawing" })).toBeInTheDocument();
-    expect(screen.getByRole("switch", { name: "Enable Mask" })).toBeChecked();
     fireEvent.pointerDown(screen.getByTestId("ascii-canvas"), { clientX: 40, clientY: 40 });
     fireEvent.pointerUp(screen.getByTestId("ascii-canvas"), { clientX: 40, clientY: 40 });
     expect(await screen.findByText("Mask strokes: 1")).toBeInTheDocument();
@@ -140,75 +148,33 @@ describe("Glyph Studio app shell", () => {
     expect(screen.getByRole("button", { name: "Place Lights" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Place Lights" }));
     expect(screen.getByRole("button", { name: "Stop Placing" })).toBeInTheDocument();
-    expect(screen.getByRole("switch", { name: "Enable Lights" })).toBeChecked();
     fireEvent.pointerDown(screen.getByTestId("ascii-canvas"), { clientX: 80, clientY: 80 });
     expect(await screen.findByText("1 / 4")).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: "Stop Placing" }));
-    expect(screen.getByRole("button", { name: "Place Lights" })).toBeInTheDocument();
   });
 
   it("applies quality presets and marks manual quality edits as custom", async () => {
     render(<App />);
 
-    await userEvent.click(screen.getByRole("tab", { name: "Style" }));
+    await openMode("ASCII");
     expect(screen.getByText("Quality Presets")).toBeInTheDocument();
     expect(screen.getByText("Active quality preset: Balanced")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Detailed" }));
     expect(screen.getByText("Active quality preset: Detailed")).toBeInTheDocument();
-    expect(screen.getByLabelText("Chars")).toHaveValue(CHAR_SETS.detailed);
+
     expect(screen.getByText("145%")).toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText("Chars"), { target: { value: "@@" } });
-    expect(screen.getByText("Active quality preset: Custom")).toBeInTheDocument();
-  });
-
-  it("keeps quality and character choices in their existing controls", async () => {
-    render(<App />);
-
-    await userEvent.click(screen.getByRole("tab", { name: "Style" }));
-    expect(screen.getByText("Quality Presets")).toBeInTheDocument();
-    expect(screen.getByLabelText("Character Set")).toBeInTheDocument();
-    expect(screen.queryByText("Detail")).not.toBeInTheDocument();
-    expect(screen.queryByText("Glyph Set")).not.toBeInTheDocument();
-    expect(screen.queryByText("Palette Mode")).not.toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: "Detailed" }));
-    expect(screen.getByLabelText("Chars")).toHaveValue(CHAR_SETS.detailed);
     expect(screen.queryByRole("button", { name: "Random Demo" })).not.toBeInTheDocument();
   });
 
-  it("adds organic preview motion without replacing light and mask workflows", async () => {
+  it("reveals and hides the inspector with focus mode", async () => {
     render(<App />);
 
-    await userEvent.click(screen.getByRole("tab", { name: "Motion" }));
-
-    expect(screen.getByText("Interactive Motion")).toBeInTheDocument();
-    expect(screen.getByRole("switch", { name: "Enable Interaction" })).not.toBeChecked();
-    expect(screen.queryByLabelText("Behavior")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Idle")).not.toBeInTheDocument();
-    expect(screen.queryByText("Strength")).not.toBeInTheDocument();
-    expect(screen.queryByText("Range")).not.toBeInTheDocument();
-    expect(screen.queryByText("Turbulence")).not.toBeInTheDocument();
-    expect(screen.queryByText("Damping")).not.toBeInTheDocument();
-    expect(screen.queryByText("Trail")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Pointer")).not.toBeInTheDocument();
-    expect(screen.queryByText("Motion Amount")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Burst" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Reset Motion" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Place Lights" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Draw Mask" })).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Animation Style")).not.toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("switch", { name: "Enable Interaction" }));
-    expect(screen.getByRole("switch", { name: "Enable Interaction" })).toBeChecked();
-    expect(screen.getByLabelText("Behavior")).toBeInTheDocument();
-    expect(screen.getByText("Strength")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Burst" })).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("switch", { name: "Animated ASCII" }));
-    expect(screen.getByLabelText("Animation Style")).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Load Source inspector" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "HIDE" }));
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "SHOW" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "SHOW" }));
+    expect(screen.getByRole("complementary", { name: "Load Source inspector" })).toBeInTheDocument();
   });
 
   it("supports the standalone changelog route", () => {

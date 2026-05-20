@@ -72,10 +72,8 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 
 const EXPORT_FORMATS = [
@@ -170,6 +168,238 @@ const EFFECT_AMOUNT_CONTROLS = {
   filmDust: "Film Dust Amount",
   sparkles: "Sparkles Amount"
 };
+
+const MODE_EFFECT_KEYS = [
+  "vignette",
+  "scanLines",
+  "crt",
+  "chromatic",
+  "bloom",
+  "charBloom",
+  "charChromatic",
+  "filmGrain",
+  "glitch",
+  "rgbSplit",
+  "blur",
+  "pixelate",
+  "halftone",
+  "filmDust",
+  "sparkles"
+];
+
+const CLEARED_MODE_EFFECTS = MODE_EFFECT_KEYS.reduce((effects, key) => {
+  effects[key] = false;
+  return effects;
+}, {});
+
+const INSPECTOR_EFFECT_KEYS = ["vignette", "scanLines", "bloom", "chromatic", "glitch", "filmGrain"];
+
+const STUDIO_MODES = [
+  {
+    id: "source",
+    label: "SOURCE",
+    title: "Load Source",
+    description: "Bring in an image or short video."
+  },
+  {
+    id: "ascii",
+    label: "ASCII",
+    title: "Minimal ASCII",
+    description: "Clean glyph mapping with quiet contrast.",
+    preset: {
+      settings: {
+        style: "characters",
+        qualityPreset: "balanced",
+        gridColumns: 144,
+        fontSize: 11,
+        characterSet: "minimal",
+        characters: CHAR_SETS.minimal,
+        blendMode: "source-over",
+        charOpacity: 100,
+        coverage: 86,
+        edgeEmphasis: 58,
+        density: 26,
+        brightness: 0,
+        contrast: 108,
+        gamma: 105,
+        animated: false,
+        interactiveMotion: false
+      },
+      effects: {}
+    }
+  },
+  {
+    id: "particles",
+    label: "PARTICLES",
+    title: "Particle Field",
+    description: "Sparse dots with pointer gravity.",
+    preset: {
+      settings: {
+        style: "dots",
+        qualityPreset: "custom",
+        gridColumns: 180,
+        fontSize: 6,
+        characterSet: "minimal",
+        characters: CHAR_SETS.minimal,
+        coverage: 78,
+        edgeEmphasis: 74,
+        density: 8,
+        contrast: 118,
+        gamma: 112,
+        interactiveMotion: true,
+        pointerMode: "attract",
+        idleMotion: "breathe",
+        motionForce: 42,
+        motionRadius: 34,
+        motionTurbulence: 18,
+        motionDamping: 90,
+        motionTrail: 22,
+        animated: false
+      },
+      effects: {
+        filmGrain: true,
+        filmGrainAmount: 22,
+        bloom: true,
+        bloomAmount: 22
+      }
+    }
+  },
+  {
+    id: "ripples",
+    label: "RIPPLES",
+    title: "Ripple Scan",
+    description: "Wave motion with scan-line pressure.",
+    preset: {
+      settings: {
+        style: "characters",
+        qualityPreset: "custom",
+        gridColumns: 150,
+        fontSize: 10,
+        characterSet: "minimal",
+        characters: CHAR_SETS.minimal,
+        coverage: 88,
+        edgeEmphasis: 68,
+        density: 20,
+        contrast: 112,
+        gamma: 118,
+        animated: true,
+        animationStyle: "wave",
+        animationSpeed: 2600,
+        animationIntensity: 74,
+        animationRandomness: 22,
+        interactiveMotion: false
+      },
+      effects: {
+        scanLines: true,
+        scanLinesAmount: 32,
+        vignette: true,
+        vignetteAmount: 48
+      }
+    }
+  },
+  {
+    id: "lines",
+    label: "LINES",
+    title: "Contour Lines",
+    description: "Edges and direction, stripped to signal.",
+    preset: {
+      settings: {
+        style: "lines",
+        qualityPreset: "custom",
+        gridColumns: 168,
+        fontSize: 8,
+        coverage: 92,
+        edgeEmphasis: 92,
+        density: 18,
+        contrast: 132,
+        gamma: 125,
+        animated: false,
+        interactiveMotion: false
+      },
+      effects: {
+        vignette: true,
+        vignetteAmount: 35
+      }
+    }
+  },
+  {
+    id: "metal",
+    label: "METAL",
+    title: "Metal Glyph",
+    description: "Hard shaded cells with low glow.",
+    preset: {
+      settings: {
+        style: "3d",
+        qualityPreset: "custom",
+        gridColumns: 132,
+        cubeCellSize: 13,
+        cubeHSpacing: 96,
+        cubeVSpacing: 92,
+        cubeTopShade: 1.55,
+        cubeLightSide: 1.2,
+        cubeDarkSide: 0.42,
+        cubeOutline: 1,
+        cubeFlipLight: false,
+        coverage: 90,
+        contrast: 128,
+        gamma: 118,
+        animated: false,
+        interactiveMotion: false
+      },
+      effects: {
+        bloom: true,
+        bloomAmount: 26,
+        charBloom: true,
+        charBloomAmount: 30
+      }
+    }
+  },
+  {
+    id: "chrome",
+    label: "CHROME",
+    title: "Chrome Glyph",
+    description: "Reflective color math, kept monochrome at rest.",
+    preset: {
+      settings: {
+        style: "disco",
+        qualityPreset: "custom",
+        gridColumns: 150,
+        fontSize: 9,
+        discoUniformity: 92,
+        discoRandomize: true,
+        discoSeed: 1,
+        blendMode: "screen",
+        coverage: 88,
+        edgeEmphasis: 64,
+        density: 24,
+        contrast: 118,
+        gamma: 112,
+        animated: false,
+        interactiveMotion: false
+      },
+      effects: {
+        chromatic: true,
+        chromaticAmount: 26,
+        charChromatic: true,
+        charChromaticAmount: 30
+      }
+    }
+  },
+  {
+    id: "tools",
+    label: "TOOLS",
+    title: "Canvas Tools",
+    description: "Lights and masks appear only when enabled."
+  },
+  {
+    id: "export",
+    label: "EXPORT",
+    title: "Export",
+    description: "Format, scale, timing, crop, and final passes."
+  }
+];
+
+const STUDIO_MODE_MAP = Object.fromEntries(STUDIO_MODES.map((mode) => [mode.id, mode]));
 
 const CROP_HANDLES = [
   ["nw", "top left", 0, 0],
@@ -382,10 +612,10 @@ function cloneCanvasAtScale(canvas, scale = 1) {
 
 function SelectControl({ label, value, onChange, options }) {
   return (
-    <div className="flex flex-col gap-2">
-      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+    <div className="instrument-row">
+      <Label className="instrument-label">{label}</Label>
       <Select value={String(value)} onValueChange={onChange}>
-        <SelectTrigger aria-label={label} className="h-10 w-full border-border bg-secondary/65">
+        <SelectTrigger aria-label={label} className="instrument-select">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -404,10 +634,10 @@ function SelectControl({ label, value, onChange, options }) {
 
 function RangeControl({ label, min, max, step = 1, value, suffix = "", onChange }) {
   return (
-    <div className="flex flex-col gap-2.5">
-      <div className="flex items-center justify-between gap-3">
-        <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
-        <span className="min-w-12 text-right text-xs font-medium tabular-nums text-foreground">
+    <div className="instrument-row instrument-row--range">
+      <div className="instrument-row-header">
+        <Label className="instrument-label">{label}</Label>
+        <span className="instrument-value">
           {value}{suffix}
         </span>
       </div>
@@ -425,8 +655,8 @@ function RangeControl({ label, min, max, step = 1, value, suffix = "", onChange 
 
 function ToggleControl({ label, checked, onChange }) {
   return (
-    <div className="control-row">
-      <Label className="text-sm font-medium">{label}</Label>
+    <div className="instrument-row instrument-row--toggle">
+      <Label className="instrument-label text-foreground">{label}</Label>
       <Switch checked={checked} onCheckedChange={onChange} aria-label={label} />
     </div>
   );
@@ -434,12 +664,12 @@ function ToggleControl({ label, checked, onChange }) {
 
 function ControlCard({ title, description, children, className = "" }) {
   return (
-    <section className={`control-section ${className}`}>
-      <header className="control-section-header">
-        <h2 className="text-base font-semibold leading-tight">{title}</h2>
-        {description ? <p className="text-sm leading-5 text-muted-foreground">{description}</p> : null}
+    <section className={`inspector-section ${className}`}>
+      <header className="inspector-section-header">
+        <h2 className="text-sm font-semibold uppercase leading-tight">{title}</h2>
+        {description ? <p className="text-xs leading-5 text-muted-foreground">{description}</p> : null}
       </header>
-      <div className="control-section-body">{children}</div>
+      <div className="inspector-section-body">{children}</div>
     </section>
   );
 }
@@ -879,6 +1109,10 @@ function App() {
   const [feedbackState, setFeedbackState] = useState({ bug: "idle", feature: "idle" });
   const [route, setRoute] = useState(() => (typeof window === "undefined" ? "/" : window.location.pathname));
   const [motionRevision, setMotionRevision] = useState(0);
+  const [activeMode, setActiveMode] = useState("source");
+  const [inspectorHidden, setInspectorHidden] = useState(false);
+  const [showFinalFx, setShowFinalFx] = useState(false);
+  const [backgroundPresetId, setBackgroundPresetId] = useState(1);
   const canvasRef = useRef(null);
   const sourceImageRef = useRef(null);
   const backgroundImageRef = useRef(null);
@@ -956,6 +1190,30 @@ function App() {
     setSettings((current) => ({ ...current, effects: { ...current.effects, [key]: value } }));
   }, [trackEvent]);
 
+  const applyStudioModePreset = useCallback((modeId) => {
+    const mode = STUDIO_MODE_MAP[modeId];
+    if (!mode?.preset) return;
+
+    trackEvent("studio_mode_preset", { mode: modeId });
+    setSettings((current) => ({
+      ...current,
+      ...mode.preset.settings,
+      effects: {
+        ...current.effects,
+        ...CLEARED_MODE_EFFECTS,
+        ...(mode.preset.effects || {})
+      }
+    }));
+    setStatus(`${mode.title} preset applied`);
+  }, [trackEvent]);
+
+  const selectStudioMode = useCallback((modeId) => {
+    setActiveMode(modeId);
+    setInspectorHidden(false);
+    trackEvent("studio_mode_select", { mode: modeId });
+    applyStudioModePreset(modeId);
+  }, [applyStudioModePreset, trackEvent]);
+
   const requestMotionFrame = useCallback(() => {
     if (frameRef.current) return;
     setMotionRevision((current) => current + 1);
@@ -989,11 +1247,17 @@ function App() {
   }, [trackEvent]);
 
   const loadBackgroundPreset = useCallback((id) => {
+    setBackgroundPresetId(id);
     setBackgroundUrl(createBackgroundDataUrl(id));
     setSettings((current) => ({ ...current, backgroundMode: "original", backgroundOpacity: 100 }));
     trackEvent("background_gallery_select", { id });
     setStatus(`Background ${String(id).padStart(2, "0")} applied`);
   }, [trackEvent]);
+
+  const cycleBackgroundPreset = useCallback(() => {
+    const nextId = backgroundPresetId >= BACKGROUND_PRESETS.length ? 1 : backgroundPresetId + 1;
+    loadBackgroundPreset(nextId);
+  }, [backgroundPresetId, loadBackgroundPreset]);
 
   const handleFile = useCallback((file) => {
     if (!file) return;
@@ -1843,6 +2107,12 @@ function App() {
     }
   }, [draw, sourceKind]);
 
+  const replayVideo = useCallback(() => {
+    updateSeek(0);
+    void playVideo();
+    setStatus("Replay started");
+  }, [playVideo, updateSeek]);
+
   const updatePlaybackRate = useCallback((value) => {
     const rate = Number(value);
     setPlaybackRate(rate);
@@ -1920,7 +2190,9 @@ function App() {
     ].join(" | ");
   }, [fileMeta, lights.length, maskStrokes.length, settings, sourceKind, sourceName, sourceStats]);
 
-  const effectControls = useMemo(() => EFFECTS.map(([key, label]) => (
+  const effectControls = useMemo(() => EFFECTS
+    .filter(([key]) => INSPECTOR_EFFECT_KEYS.includes(key))
+    .map(([key, label]) => (
     <React.Fragment key={key}>
       <ToggleControl label={label} checked={settings.effects[key]} onChange={(value) => updateEffect(key, value)} />
       {settings.effects[key] && EFFECT_AMOUNT_CONTROLS[key] ? (
@@ -1947,32 +2219,419 @@ function App() {
   const qualityLabel = QUALITY_PRESETS[settings.qualityPreset]?.label || "Custom";
   const exportLabel = `${settings.exportFormat.toUpperCase()} ${settings.exportScale}x`;
   const isTimedExport = settings.exportFormat === "gif" || settings.exportFormat.startsWith("mp4");
+  const activeModeMeta = STUDIO_MODE_MAP[activeMode] || STUDIO_MODE_MAP.source;
+  const currentStyleLabel = settings.style === "3d" ? "Cube" : STYLE_LABELS[settings.style];
+
+  const qualityPresetControls = (
+    <div className="grid gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Label className="instrument-label">Quality Presets</Label>
+        <Badge variant="outline" className="max-w-full shrink-0">
+          Active quality preset: {qualityLabel}
+        </Badge>
+      </div>
+      <div className="mode-preset-grid">
+        {[...QUALITY_PRESET_ORDER, "custom"].map((presetId) => {
+          const label = QUALITY_PRESETS[presetId]?.label || "Custom";
+          return (
+            <Button
+              key={presetId}
+              type="button"
+              size="sm"
+              variant={settings.qualityPreset === presetId ? "secondary" : "outline"}
+              aria-pressed={settings.qualityPreset === presetId}
+              onClick={() => selectQualityPreset(presetId)}
+            >
+              {label}
+            </Button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const backdropControls = (
+    <ControlCard title="Backdrop" description="Only the active backdrop controls stay visible.">
+      <div className="command-row">
+        <Button variant="outline" onClick={cycleBackgroundPreset}>
+          Background {String(backgroundPresetId).padStart(2, "0")}
+        </Button>
+        <Badge variant="outline">34 presets</Badge>
+      </div>
+      <SelectControl label="Mode" value={settings.backgroundMode} onChange={(value) => updateSetting("backgroundMode", value)} options={[["blur", "Blurred Image"], ["solid", "Solid Black"], ["original", "Original Image"], ["none", "Transparent"]]} />
+      {["blur", "original"].includes(settings.backgroundMode) ? (
+        <RangeControl label="Blur" min={0} max={60} value={settings.backgroundBlur} suffix="px" onChange={(value) => updateSetting("backgroundBlur", value)} />
+      ) : null}
+      {settings.backgroundMode !== "none" ? (
+        <RangeControl label="Opacity" min={0} max={100} value={settings.backgroundOpacity} suffix="%" onChange={(value) => updateSetting("backgroundOpacity", value)} />
+      ) : null}
+    </ControlCard>
+  );
+
+  const interactionControls = (
+    <ControlCard title="Interaction" description="Pointer field settings reveal only when active.">
+      <ToggleControl label="Enable Interaction" checked={settings.interactiveMotion} onChange={(value) => updateSetting("interactiveMotion", value)} />
+      {settings.interactiveMotion ? (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <SelectControl label="Behavior" value={settings.pointerMode} onChange={(value) => updateSetting("pointerMode", value)} options={POINTER_MOTION_OPTIONS} />
+            <SelectControl label="Idle" value={settings.idleMotion} onChange={(value) => updateSetting("idleMotion", value)} options={IDLE_MOTION_OPTIONS} />
+          </div>
+          <RangeControl label="Strength" min={0} max={100} value={settings.motionForce} suffix="%" onChange={(value) => updateSetting("motionForce", value)} />
+          <RangeControl label="Range" min={5} max={60} value={settings.motionRadius} suffix="%" onChange={(value) => updateSetting("motionRadius", value)} />
+          <RangeControl label="Turbulence" min={0} max={100} value={settings.motionTurbulence} suffix="%" onChange={(value) => updateSetting("motionTurbulence", value)} />
+          <RangeControl label="Damping" min={50} max={98} value={settings.motionDamping} suffix="%" onChange={(value) => updateSetting("motionDamping", value)} />
+          <RangeControl label="Trail" min={0} max={100} value={settings.motionTrail} suffix="%" onChange={(value) => updateSetting("motionTrail", value)} />
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="outline" onClick={triggerInteractiveBurst}>
+              <SparklesIcon data-icon="inline-start" />
+              Burst
+            </Button>
+            <Button variant="outline" onClick={resetInteractiveMotion}>
+              <RotateCcwIcon data-icon="inline-start" />
+              Reset Motion
+            </Button>
+          </div>
+        </>
+      ) : null}
+    </ControlCard>
+  );
+
+  const animationControls = (
+    <ControlCard title="Animation" description="Timing appears only when ASCII animation is active.">
+      <ToggleControl label="Animated ASCII" checked={settings.animated} onChange={(value) => updateSetting("animated", value)} />
+      {settings.animated ? (
+        <>
+          <SelectControl label="Animation Style" value={settings.animationStyle} onChange={(value) => updateSetting("animationStyle", value)} options={[["wave", "Wave"], ["cascade-lr", "Cascade Left to Right"], ["cascade-rl", "Cascade Right to Left"], ["cascade-tb", "Cascade Top to Bottom"], ["reveal", "Reveal"], ["pulse", "Pulse"]]} />
+          <RangeControl label="Speed" min={1} max={8} step={0.1} value={Number((settings.animationSpeed / 1000).toFixed(1))} suffix="s" onChange={(value) => updateSetting("animationSpeed", value * 1000)} />
+          <RangeControl label="Intensity" min={0} max={100} value={settings.animationIntensity} suffix="%" onChange={(value) => updateSetting("animationIntensity", value)} />
+          <RangeControl label="Randomness" min={0} max={100} value={settings.animationRandomness} suffix="%" onChange={(value) => updateSetting("animationRandomness", value)} />
+        </>
+      ) : null}
+    </ControlCard>
+  );
+
+  const lightsControls = (
+    <ControlCard title="Lights" description="Place and shape up to four glow sources.">
+      <div className="command-row">
+        <ToggleControl label="Enable Lights" checked={settings.lights} onChange={toggleLights} />
+        {settings.lights ? <Badge variant="outline">{lights.length} / 4</Badge> : null}
+      </div>
+      {settings.lights ? (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant={canvasTool === "light" ? "secondary" : "outline"} onClick={canvasTool === "light" ? clearCanvasTool : activateLightTool}>
+              <SparklesIcon data-icon="inline-start" />
+              {canvasTool === "light" ? "Stop Placing" : "Place Lights"}
+            </Button>
+            <Button variant="outline" onClick={() => addLight()}>
+              <SparklesIcon data-icon="inline-start" />
+              Add Light
+            </Button>
+            <Button variant="outline" disabled={!activeLight} onClick={deleteActiveLight}>
+              <Trash2Icon data-icon="inline-start" />
+              Delete
+            </Button>
+          </div>
+          <div
+            data-light-pad
+            className="light-pad"
+            onPointerDown={handleLightPadPointerDown}
+            onPointerMove={moveLightPadDrag}
+            onPointerUp={finishLightPadDrag}
+            onPointerCancel={finishLightPadDrag}
+          >
+            {lights.length ? lights.map((light, index) => (
+              <button
+                key={light.id}
+                type="button"
+                aria-label={`Select light ${index + 1}`}
+                className="light-node"
+                style={{ left: `${light.x * 100}%`, top: `${light.y * 100}%` }}
+                onPointerDown={(event) => startLightPadDrag(event, light, index)}
+                onPointerMove={moveLightPadDrag}
+                onPointerUp={finishLightPadDrag}
+                onPointerCancel={finishLightPadDrag}
+                onClick={() => {
+                  setActiveLightId(light.id);
+                  setStatus(`Light ${index + 1} active`);
+                }}
+              >
+                {index + 1}
+              </button>
+            )) : (
+              <div className="grid h-full place-items-center px-4 text-center text-xs text-muted-foreground">No lights placed</div>
+            )}
+          </div>
+          {Number(settings.fontSize || 0) <= 12 ? (
+            <p className="text-xs leading-5 text-muted-foreground">
+              Font size was raised to 12 for lighting performance.
+            </p>
+          ) : null}
+          {activeLight ? (
+            <>
+              <Badge variant="secondary" className="w-fit">Light {activeLightIndex + 1} selected</Badge>
+              <RangeControl label="Light X" min={0} max={100} value={Math.round(activeLight.x * 100)} suffix="%" onChange={(value) => updateActiveLight("x", value / 100)} />
+              <RangeControl label="Light Y" min={0} max={100} value={Math.round(activeLight.y * 100)} suffix="%" onChange={(value) => updateActiveLight("y", value / 100)} />
+              <RangeControl label="Radius" min={5} max={100} value={activeLight.radius} onChange={(value) => updateActiveLight("radius", value)} />
+              <RangeControl label="Light Intensity" min={0} max={100} value={activeLight.intensity} onChange={(value) => updateActiveLight("intensity", value)} />
+              <RangeControl label="Blur" min={0} max={80} value={activeLight.blur} suffix="px" onChange={(value) => updateActiveLight("blur", value)} />
+              <RangeControl label="Rotation" min={0} max={360} value={activeLight.rotation} suffix="deg" onChange={(value) => updateActiveLight("rotation", value)} />
+            </>
+          ) : (
+            <Badge variant="outline" className="w-fit">No light selected</Badge>
+          )}
+        </>
+      ) : null}
+    </ControlCard>
+  );
+
+  const maskControls = (
+    <ControlCard title="Mask" description="Draw, invert, and edit the visible glyph area.">
+      <ToggleControl label="Enable Mask" checked={settings.mask} onChange={toggleMask} />
+      {settings.mask ? (
+        <>
+          <div className="command-row">
+            <Button variant={canvasTool === "mask" ? "secondary" : "outline"} onClick={canvasTool === "mask" ? clearCanvasTool : activateMaskTool}>
+              <LayersIcon data-icon="inline-start" />
+              {canvasTool === "mask" ? "Stop Drawing" : "Draw Mask"}
+            </Button>
+            <Badge variant="outline">Mask strokes: {maskStrokes.length}</Badge>
+          </div>
+          <SelectControl label="Mask Tool" value={settings.maskTool} onChange={(value) => updateSetting("maskTool", value)} options={[["freehand", "Freehand"], ["rect", "Rectangle"], ["ellipse", "Ellipse"]]} />
+          <RangeControl label="Brush Size" min={5} max={100} value={settings.brushSize} onChange={(value) => updateSetting("brushSize", value)} />
+          <ToggleControl label="Show Overlay" checked={settings.showMaskOverlay} onChange={(value) => updateSetting("showMaskOverlay", value)} />
+          <ToggleControl label="Invert Mask" checked={settings.invertMask} onChange={(value) => updateSetting("invertMask", value)} />
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="outline" disabled={!maskStrokes.length} onClick={undoMaskStroke}>Undo Stroke</Button>
+            <Button variant="outline" disabled={!maskStrokes.length} onClick={clearMask}>Clear Mask</Button>
+          </div>
+        </>
+      ) : null}
+    </ControlCard>
+  );
+
+  const sourceInspector = (
+    <>
+      <ControlCard title="Source File" description="Images and videos render through the same preview engine.">
+        <Button onClick={() => fileRef.current?.click()}>
+          <ImageUpIcon data-icon="inline-start" />
+          Upload Image / Video
+        </Button>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <TelemetryPill label="kind" value={sourceKind.startsWith("video") ? "Video source" : "Image source"} />
+          <TelemetryPill label="resolution" value={sourceResolutionLabel} />
+          <TelemetryPill label="status" value={status} />
+        </div>
+      </ControlCard>
+      {sourceKind.startsWith("video") ? (
+        <ControlCard title="Video Transport" description="Playback, frame selection, and speed.">
+          <div className="grid grid-cols-3 gap-2">
+            <Button variant="outline" onClick={playVideo}><PlayIcon data-icon="inline-start" />Play</Button>
+            <Button variant="outline" onClick={stopVideo}><SquareIcon data-icon="inline-start" />Stop</Button>
+            <Button variant="outline" onClick={replayVideo}><Redo2Icon data-icon="inline-start" />Replay</Button>
+          </div>
+          <RangeControl label="Seek" min={0} max={Math.max(0.1, duration)} step={0.1} value={Number(seek.toFixed(1))} onChange={updateSeek} />
+          <SelectControl label="Speed" value={playbackRate} onChange={updatePlaybackRate} options={[["0.25", "0.25x"], ["0.5", "0.5x"], ["1", "1x"], ["1.5", "1.5x"], ["2", "2x"]]} />
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary" className="w-fit">FPS 30</Badge>
+            <Badge variant="outline" className="w-fit">{isPlaying ? "Playing" : "Stopped"}</Badge>
+          </div>
+        </ControlCard>
+      ) : null}
+    </>
+  );
+
+  const asciiInspector = (
+    <>
+      <ControlCard title="Glyph Map" description="Character system, cell size, and blend.">
+        <RangeControl label="Columns" min={48} max={260} value={settings.gridColumns} onChange={(value) => updateQualitySetting("gridColumns", value)} />
+        {settings.style !== "3d" ? (
+          <RangeControl label="Cell Size" min={3} max={48} value={settings.fontSize} onChange={(value) => updateQualitySetting("fontSize", value)} />
+        ) : null}
+        <SelectControl label="Character Set" value={settings.characterSet} onChange={updateCharacterSet} options={[["standard", "Standard"], ["detailed", "Detailed"], ["minimal", "Minimal"], ["custom", "Custom"]]} />
+        {settings.characterSet === "custom" ? (
+          <div className="instrument-row">
+            <Label className="instrument-label">Chars</Label>
+            <Input aria-label="Chars" className="instrument-input" value={settings.characters} onChange={(event) => updateQualitySetting("characters", event.target.value)} />
+          </div>
+        ) : null}
+        <SelectControl label="Blend Mode" value={settings.blendMode} onChange={(value) => updateSetting("blendMode", value)} options={[["source-over", "Normal"], ["overlay", "Overlay"], ["color-dodge", "Color Dodge"], ["screen", "Screen"], ["lighter", "Lighter"]]} />
+        <RangeControl label="Char Opacity" min={0} max={100} value={settings.charOpacity} suffix="%" onChange={(value) => updateSetting("charOpacity", value)} />
+        <ToggleControl label="Invert Mapping" checked={settings.invert} onChange={(value) => updateSetting("invert", value)} />
+        <ToggleControl label="Randomize Characters" checked={settings.randomize} onChange={(value) => updateSetting("randomize", value)} />
+      </ControlCard>
+      <ControlCard title="Signal" description="Coverage, edge response, tone, and gamma.">
+        {qualityPresetControls}
+        <RangeControl label="Coverage" min={0} max={100} value={settings.coverage} suffix="%" onChange={(value) => updateQualitySetting("coverage", value)} />
+        <RangeControl label="Edge Emphasis" min={0} max={100} value={settings.edgeEmphasis} suffix="%" onChange={(value) => updateQualitySetting("edgeEmphasis", value)} />
+        <RangeControl label="Density" min={0} max={100} value={settings.density} suffix="%" onChange={(value) => updateQualitySetting("density", value)} />
+        <RangeControl label="Brightness" min={-100} max={100} value={settings.brightness} onChange={(value) => updateQualitySetting("brightness", value)} />
+        <RangeControl label="Contrast" min={0} max={200} value={settings.contrast} onChange={(value) => updateQualitySetting("contrast", value)} />
+        <RangeControl label="Gamma" min={40} max={260} value={settings.gamma} suffix="%" onChange={(value) => updateQualitySetting("gamma", value)} />
+      </ControlCard>
+      {backdropControls}
+    </>
+  );
+
+  const particlesInspector = (
+    <>
+      <ControlCard title="Point Field" description="Sparse points tuned from the ASCII engine.">
+        <RangeControl label="Columns" min={72} max={280} value={settings.gridColumns} onChange={(value) => updateQualitySetting("gridColumns", value)} />
+        <RangeControl label="Cell Size" min={3} max={18} value={settings.fontSize} onChange={(value) => updateQualitySetting("fontSize", value)} />
+        <RangeControl label="Edge Emphasis" min={0} max={100} value={settings.edgeEmphasis} suffix="%" onChange={(value) => updateQualitySetting("edgeEmphasis", value)} />
+        <RangeControl label="Density" min={0} max={100} value={settings.density} suffix="%" onChange={(value) => updateQualitySetting("density", value)} />
+        <ToggleControl label="Dot Grid Overlay" checked={settings.dotGrid} onChange={(value) => updateSetting("dotGrid", value)} />
+      </ControlCard>
+      {interactionControls}
+    </>
+  );
+
+  const ripplesInspector = (
+    <>
+      {animationControls}
+      <ControlCard title="Wave Signal" description="Tone and scan pass for ripple output.">
+        <RangeControl label="Columns" min={72} max={240} value={settings.gridColumns} onChange={(value) => updateQualitySetting("gridColumns", value)} />
+        <RangeControl label="Cell Size" min={5} max={24} value={settings.fontSize} onChange={(value) => updateQualitySetting("fontSize", value)} />
+        <RangeControl label="Contrast" min={0} max={200} value={settings.contrast} onChange={(value) => updateQualitySetting("contrast", value)} />
+        <RangeControl label="Gamma" min={40} max={260} value={settings.gamma} suffix="%" onChange={(value) => updateQualitySetting("gamma", value)} />
+        <ToggleControl label="Scan Lines" checked={settings.effects.scanLines} onChange={(value) => updateEffect("scanLines", value)} />
+        {settings.effects.scanLines ? <RangeControl label="Scan Lines Amount" min={0} max={100} value={settings.effects.scanLinesAmount} suffix="%" onChange={(value) => updateEffect("scanLinesAmount", value)} /> : null}
+      </ControlCard>
+    </>
+  );
+
+  const linesInspector = (
+    <ControlCard title="Line Signal" description="Line density, edge weight, and tonal threshold.">
+      <RangeControl label="Columns" min={72} max={260} value={settings.gridColumns} onChange={(value) => updateQualitySetting("gridColumns", value)} />
+      <RangeControl label="Cell Size" min={4} max={24} value={settings.fontSize} onChange={(value) => updateQualitySetting("fontSize", value)} />
+      <RangeControl label="Coverage" min={0} max={100} value={settings.coverage} suffix="%" onChange={(value) => updateQualitySetting("coverage", value)} />
+      <RangeControl label="Edge Emphasis" min={0} max={100} value={settings.edgeEmphasis} suffix="%" onChange={(value) => updateQualitySetting("edgeEmphasis", value)} />
+      <RangeControl label="Contrast" min={0} max={200} value={settings.contrast} onChange={(value) => updateQualitySetting("contrast", value)} />
+      <RangeControl label="Gamma" min={40} max={260} value={settings.gamma} suffix="%" onChange={(value) => updateQualitySetting("gamma", value)} />
+    </ControlCard>
+  );
+
+  const metalInspector = (
+    <ControlCard title="Cube Geometry" description="Hard shaded facets and low glow.">
+      <RangeControl label="Cell Size" min={4} max={60} value={settings.cubeCellSize} onChange={(value) => updateSetting("cubeCellSize", value)} />
+      <RangeControl label="H. Spacing" min={50} max={180} value={settings.cubeHSpacing} suffix="%" onChange={(value) => updateSetting("cubeHSpacing", value)} />
+      <RangeControl label="V. Spacing" min={50} max={180} value={settings.cubeVSpacing} suffix="%" onChange={(value) => updateSetting("cubeVSpacing", value)} />
+      <RangeControl label="Top Shade" min={0.5} max={2} step={0.05} value={settings.cubeTopShade} onChange={(value) => updateSetting("cubeTopShade", value)} />
+      <RangeControl label="Light Side" min={0} max={2} step={0.05} value={settings.cubeLightSide} onChange={(value) => updateSetting("cubeLightSide", value)} />
+      <RangeControl label="Dark Side" min={0} max={1} step={0.05} value={settings.cubeDarkSide} onChange={(value) => updateSetting("cubeDarkSide", value)} />
+      <RangeControl label="Outline" min={0} max={8} value={settings.cubeOutline} onChange={(value) => updateSetting("cubeOutline", value)} />
+      <ToggleControl label="Flip Light" checked={settings.cubeFlipLight} onChange={(value) => updateSetting("cubeFlipLight", value)} />
+      <ToggleControl label="Bloom" checked={settings.effects.bloom} onChange={(value) => updateEffect("bloom", value)} />
+      {settings.effects.bloom ? <RangeControl label="Bloom Amount" min={0} max={100} value={settings.effects.bloomAmount} suffix="%" onChange={(value) => updateEffect("bloomAmount", value)} /> : null}
+    </ControlCard>
+  );
+
+  const chromeInspector = (
+    <ControlCard title="Reflective Cells" description="Disco cells and chromatic edge.">
+      <RangeControl label="Columns" min={72} max={240} value={settings.gridColumns} onChange={(value) => updateQualitySetting("gridColumns", value)} />
+      <RangeControl label="Cell Size" min={4} max={24} value={settings.fontSize} onChange={(value) => updateQualitySetting("fontSize", value)} />
+      <RangeControl label="Uniformity" min={0} max={100} value={settings.discoUniformity} suffix="%" onChange={(value) => updateSetting("discoUniformity", value)} />
+      <div className="instrument-row instrument-row--toggle">
+        <Label className="instrument-label text-foreground">Pattern</Label>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setSettings((current) => ({
+              ...current,
+              discoRandomize: true,
+              discoSeed: (current.discoSeed || 0) + 1
+            }));
+            trackEvent("disco_randomize", { seed: (settings.discoSeed || 0) + 1 });
+            setStatus("Chrome pattern randomized");
+          }}
+        >
+          Randomize
+        </Button>
+      </div>
+      <ToggleControl label="Chromatic" checked={settings.effects.chromatic} onChange={(value) => updateEffect("chromatic", value)} />
+      {settings.effects.chromatic ? <RangeControl label="Chromatic Amount" min={0} max={100} value={settings.effects.chromaticAmount} suffix="%" onChange={(value) => updateEffect("chromaticAmount", value)} /> : null}
+    </ControlCard>
+  );
+
+  const exportInspector = (
+    <>
+      <ControlCard title="Render Output" description="Timing controls appear only for animated formats.">
+        <div className="grid grid-cols-2 gap-2">
+          <SelectControl label="Format" value={settings.exportFormat} onChange={(value) => updateSetting("exportFormat", value)} options={EXPORT_FORMATS} />
+          <SelectControl label="Resolution" value={settings.exportScale} onChange={(value) => updateSetting("exportScale", Number(value))} options={[["1", "1x"], ["2", "2x"], ["3", "3x"], ["4", "4x"]]} />
+        </div>
+        {isTimedExport ? (
+          <div className="grid grid-cols-2 gap-2">
+            <SelectControl label="Animation duration" value={settings.exportDuration} onChange={(value) => updateSetting("exportDuration", Number(value))} options={[["3", "3 seconds"], ["5", "5 seconds"], ["10", "10 seconds"], ["15", "15 seconds"]]} />
+            <SelectControl label="Frame rate" value={settings.exportFps} onChange={(value) => updateSetting("exportFps", Number(value))} options={[["15", "15 fps"], ["20", "20 fps"], ["24", "24 fps"], ["30", "30 fps"], ["60", "60 fps"]]} />
+          </div>
+        ) : null}
+        <Button onClick={exportCanvas} disabled={exporting}>
+          <DownloadIcon data-icon="inline-start" />
+          {exporting ? "Exporting" : "Export"}
+        </Button>
+      </ControlCard>
+      <ControlCard title="Final FX" description="Keep the pass list closed until you need it.">
+        <ToggleControl label="Edit Final Effects" checked={showFinalFx} onChange={setShowFinalFx} />
+        {showFinalFx ? <div className="grid gap-2">{effectControls}</div> : (
+          <div className="telemetry-line">
+            {activeEffectNames.length ? activeEffectNames.join(", ") : "No final effects active"}
+          </div>
+        )}
+      </ControlCard>
+      <ControlCard title="Crop & Rotate" description="Adjust the source frame before rendering.">
+        <Button variant="outline" onClick={() => setModal("crop")}><CropIcon data-icon="inline-start" />Crop / Rotate</Button>
+      </ControlCard>
+    </>
+  );
+
+  const inspectorContent = {
+    source: sourceInspector,
+    ascii: asciiInspector,
+    particles: particlesInspector,
+    ripples: ripplesInspector,
+    lines: linesInspector,
+    metal: metalInspector,
+    chrome: chromeInspector,
+    tools: (
+      <>
+        {lightsControls}
+        {maskControls}
+      </>
+    ),
+    export: exportInspector
+  }[activeMode] || sourceInspector;
 
   if (route === "/changelog") {
     return <ChangelogPage onBack={() => navigate("/")} />;
   }
 
   return (
-    <div className="mission-shell">
+    <div className={`studio-shell ${inspectorHidden ? "inspector-hidden" : ""}`}>
       <input ref={fileRef} hidden type="file" accept={UPLOAD_ACCEPT} onChange={(event) => handleFile(event.target.files[0])} />
-      <div className="relative z-10 mx-auto grid min-h-screen max-w-[1500px] gap-4 p-3 lg:grid-rows-[auto_minmax(0,1fr)] lg:p-4">
-        <header className="rail-surface flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="grid size-10 shrink-0 place-items-center rounded-sm border border-border bg-secondary text-foreground">
-              <ImageUpIcon className="size-5" aria-hidden="true" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-xl font-semibold leading-tight">Glyph Studio</h1>
-              <p className="truncate text-sm text-muted-foreground">
-                {sourceName ? `${sourceName} · ${settings.style === "3d" ? "Cube" : STYLE_LABELS[settings.style]} · ${exportLabel}` : "Drop media, tune ASCII, export."}
-              </p>
-            </div>
+
+      <main
+        className="studio-stage"
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => {
+          event.preventDefault();
+          handleFile(event.dataTransfer.files[0]);
+        }}
+      >
+        <div className="stage-topbar">
+          <button type="button" className="corner-action" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+            {theme === "dark" ? "LIGHT" : "DARK"}
+          </button>
+          <div className="stage-title" aria-label="Glyph Studio">
+            <h1>Glyph Studio</h1>
+            <strong>{sourceName ? `${sourceName} / ${currentStyleLabel} / ${exportLabel}` : "Drop media, tune ASCII, export."}</strong>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button aria-label="Open upload" onClick={() => fileRef.current?.click()}>
-              <ImageUpIcon data-icon="inline-start" />
-              Upload
-            </Button>
+          <div className="top-actions">
+            <button type="button" className="corner-action" onClick={() => setInspectorHidden((current) => !current)}>
+              {inspectorHidden ? "SHOW" : "HIDE"}
+            </button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button aria-label="Menu" variant="outline" size="icon">
@@ -1981,10 +2640,6 @@ function App() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-                    {theme === "dark" ? <SunIcon data-icon="inline-start" /> : <MoonIcon data-icon="inline-start" />}
-                    {theme === "dark" ? "Light Mode" : "Dark Mode"}
-                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setModal("bug")}>
                     <BugIcon data-icon="inline-start" />
                     Report a Bug
@@ -2013,451 +2668,121 @@ function App() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </header>
+        </div>
 
-        <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_392px]">
-          <main
-            className="preview-frame relative min-h-[58vh] overflow-hidden p-3 lg:min-h-0"
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => {
-              event.preventDefault();
-              handleFile(event.dataTransfer.files[0]);
-            }}
-          >
-            <div className="pointer-events-none absolute left-4 top-4 z-10 flex max-w-[calc(100%-2rem)] flex-wrap items-center gap-2">
-              <Badge variant="secondary">{sourceStateLabel}</Badge>
-              <Badge variant="outline">{toolStateLabel}</Badge>
-              <Badge variant="outline">{qualityLabel}</Badge>
-              {activeEffectNames.length ? <Badge variant="outline">{activeEffectNames.length} FX</Badge> : null}
+        <div className="stage-telemetry" aria-label="Preview status">
+          <Badge variant="secondary">{sourceStateLabel}</Badge>
+          <Badge variant="outline">{toolStateLabel}</Badge>
+          <Badge variant="outline">{qualityLabel}</Badge>
+          {activeEffectNames.length ? <Badge variant="outline">{activeEffectNames.length} FX</Badge> : null}
+        </div>
+
+        <div className="stage-canvas-wrap">
+          <canvas
+            ref={canvasRef}
+            data-testid="ascii-canvas"
+            aria-label="ASCII art preview"
+            className={`stage-canvas ${canvasTool === "mask" ? "cursor-crosshair" : canvasTool === "light" ? "cursor-cell" : ""}`}
+            onPointerEnter={updateCanvasPointerMotion}
+            onPointerDown={handleCanvasPointerDown}
+            onPointerMove={handleCanvasPointerMove}
+            onPointerUp={finishCanvasPointer}
+            onPointerLeave={handleCanvasPointerLeave}
+            onPointerCancel={handleCanvasPointerLeave}
+          />
+          {!sourceUrl ? (
+            <button
+              type="button"
+              className="stage-empty"
+              onClick={() => fileRef.current?.click()}
+              aria-label="Open source upload"
+            >
+              <ImageUpIcon className="size-6" aria-hidden="true" />
+              <span>Drop an image or video here</span>
+              <small>or click to upload</small>
+            </button>
+          ) : null}
+          {videoUrl ? (
+            <video
+              ref={videoRef}
+              aria-hidden="true"
+              autoPlay
+              className="pointer-events-none absolute size-px opacity-0"
+              src={videoUrl}
+              muted
+              playsInline
+              preload="auto"
+              loop
+              onCanPlay={handleVideoFrameReady}
+              onLoadedData={handleVideoFrameReady}
+              onLoadedMetadata={handleVideoMetadata}
+              onPause={() => setIsPlaying(false)}
+              onPlay={() => setIsPlaying(true)}
+              onSeeked={handleVideoFrameReady}
+              onTimeUpdate={(event) => setSeek(event.currentTarget.currentTime)}
+            />
+          ) : null}
+        </div>
+
+        <div className="stage-status">
+          {sourceKind.startsWith("video") ? (
+            <>
+              <button type="button" onClick={isPlaying ? stopVideo : playVideo}>{isPlaying ? "PAUSE" : "PLAY"}</button>
+              <span>|</span>
+              <button type="button" onClick={replayVideo}>REPLAY</button>
+            </>
+          ) : (
+            <span>{status}</span>
+          )}
+        </div>
+
+        <div className="stage-upload">
+          <Button onClick={() => fileRef.current?.click()}>
+            <ImageUpIcon data-icon="inline-start" />
+            Upload SVG / Media
+          </Button>
+          <Button variant="outline" onClick={exportCanvas} disabled={exporting}>
+            <DownloadIcon data-icon="inline-start" />
+            {exporting ? "Exporting" : "Export"}
+          </Button>
+        </div>
+      </main>
+
+      {!inspectorHidden ? (
+        <aside className="shader-inspector" aria-label={`${activeModeMeta.title} inspector`}>
+          <header className="inspector-header">
+            <div>
+              <span>{activeModeMeta.label}</span>
+              <h2>{activeModeMeta.title}</h2>
+              <p>{activeModeMeta.description}</p>
             </div>
-            <div className="flex h-full min-h-[54vh] items-center justify-center">
-              <canvas
-                ref={canvasRef}
-                data-testid="ascii-canvas"
-                aria-label="ASCII art preview"
-                className={`max-h-[calc(100vh-11rem)] w-full max-w-[1120px] touch-none rounded-sm object-contain ${
-                  canvasTool === "mask" ? "cursor-crosshair" : canvasTool === "light" ? "cursor-cell" : ""
-                }`}
-                onPointerEnter={updateCanvasPointerMotion}
-                onPointerDown={handleCanvasPointerDown}
-                onPointerMove={handleCanvasPointerMove}
-                onPointerUp={finishCanvasPointer}
-                onPointerLeave={handleCanvasPointerLeave}
-                onPointerCancel={handleCanvasPointerLeave}
-              />
-              {!sourceUrl ? (
-                <button
-                  type="button"
-                  className="absolute inset-0 z-0 grid place-items-center p-6 text-center"
-                  onClick={() => fileRef.current?.click()}
-                  aria-label="Open source upload"
-                >
-                  <span className="grid max-w-sm gap-3">
-                    <span className="mx-auto grid size-12 place-items-center rounded-sm border border-border bg-secondary text-foreground">
-                      <ImageUpIcon className="size-6" aria-hidden="true" />
-                    </span>
-                    <span className="text-lg font-semibold">Drop an image or video here</span>
-                    <span className="text-sm text-muted-foreground">or click to upload</span>
-                  </span>
-                </button>
-              ) : null}
-              {videoUrl ? (
-                <video
-                  ref={videoRef}
-                  aria-hidden="true"
-                  autoPlay
-                  className="pointer-events-none absolute size-px opacity-0"
-                  src={videoUrl}
-                  muted
-                  playsInline
-                  preload="auto"
-                  loop
-                  onCanPlay={handleVideoFrameReady}
-                  onLoadedData={handleVideoFrameReady}
-                  onLoadedMetadata={handleVideoMetadata}
-                  onPause={() => setIsPlaying(false)}
-                  onPlay={() => setIsPlaying(true)}
-                  onSeeked={handleVideoFrameReady}
-                  onTimeUpdate={(event) => setSeek(event.currentTarget.currentTime)}
-                />
-              ) : null}
-            </div>
-            {sourceUrl ? (
-              <div className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-between gap-3 border-t border-border bg-background/95 px-3 py-2 text-sm">
-                <span className="truncate font-medium text-foreground">{status}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">{sourceResolutionLabel}</span>
-              </div>
+            {activeModeMeta.preset ? (
+              <Button variant="ghost" size="sm" onClick={() => applyStudioModePreset(activeMode)}>
+                RESET
+              </Button>
             ) : null}
-          </main>
-
-          <aside className="rail-surface flex min-h-0 flex-col overflow-hidden lg:max-h-[calc(100vh-6rem)]">
-            <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-              <div>
-                <h2 className="text-lg font-semibold leading-tight">Controls</h2>
-                <p className="text-sm text-muted-foreground">{settings.gridColumns} cols · {exportLabel}</p>
-              </div>
-              <Badge variant="outline">{activeEffectNames.length} FX</Badge>
-            </div>
-
-            <ScrollArea className="lg:h-[calc(100vh-10rem)]">
-            <div className="p-3 lg:p-4">
-              <Tabs defaultValue="source" className="gap-4">
-                <TabsList className="grid h-auto w-full grid-cols-4 gap-0 border-b border-border bg-transparent p-0">
-                  <TabsTrigger value="source" className="h-10 rounded-none border-r border-border px-1 text-xs sm:text-sm">
-                    <ImageUpIcon className="size-3.5" aria-hidden="true" />
-                    Source
-                  </TabsTrigger>
-                  <TabsTrigger value="look" className="h-10 rounded-none border-r border-border px-1 text-xs sm:text-sm">
-                    <SparklesIcon className="size-3.5" aria-hidden="true" />
-                    Style
-                  </TabsTrigger>
-                  <TabsTrigger value="motion" className="h-10 rounded-none border-r border-border px-1 text-xs sm:text-sm">
-                    <LayersIcon className="size-3.5" aria-hidden="true" />
-                    Motion
-                  </TabsTrigger>
-                  <TabsTrigger value="finish" className="h-10 rounded-none px-1 text-xs sm:text-sm">
-                    <DownloadIcon className="size-3.5" aria-hidden="true" />
-                    Export
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="source" className="grid">
-                  <ControlCard title="Load source" description="Images and videos render through the same preview engine.">
-                    <Button onClick={() => fileRef.current?.click()}>
-                      <ImageUpIcon data-icon="inline-start" />
-                      Upload Image / Video
-                    </Button>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <TelemetryPill label="kind" value={sourceKind.startsWith("video") ? "Video source" : "Image source"} />
-                      <TelemetryPill label="resolution" value={sourceResolutionLabel} />
-                    </div>
-                  </ControlCard>
-
-                  {sourceKind.startsWith("video") ? (
-                    <ControlCard title="Video transport" description="Playback, frame selection, and speed.">
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button variant="outline" onClick={playVideo}><PlayIcon data-icon="inline-start" />Play</Button>
-                        <Button variant="outline" onClick={stopVideo}><SquareIcon data-icon="inline-start" />Stop</Button>
-                      </div>
-                      <RangeControl label="Seek" min={0} max={Math.max(0.1, duration)} step={0.1} value={Number(seek.toFixed(1))} onChange={updateSeek} />
-                      <SelectControl label="Speed" value={playbackRate} onChange={updatePlaybackRate} options={[["0.25", "0.25x"], ["0.5", "0.5x"], ["1", "1x"], ["1.5", "1.5x"], ["2", "2x"]]} />
-                      <div className="flex flex-wrap gap-2">
-                        <Badge variant="secondary" className="w-fit">FPS 30</Badge>
-                        <Badge variant="outline" className="w-fit">{isPlaying ? "Playing" : "Stopped"}</Badge>
-                      </div>
-                    </ControlCard>
-                  ) : null}
-                </TabsContent>
-
-                <TabsContent value="look" className="grid">
-                  <ControlCard title="Render style" description="Character system, blend, and output texture.">
-                    <SelectControl label="Style" value={settings.style} onChange={(value) => updateSetting("style", value)} options={Object.entries(STYLE_LABELS)} />
-                    {settings.style === "mosaic" && <SelectControl label="Tile Shape" value={settings.tileShape} onChange={(value) => updateSetting("tileShape", value)} options={[["square", "Square"], ["wide", "Wide"], ["tall", "Tall"]]} />}
-                    {settings.style === "3d" && (
-                      <div className="control-subsection">
-                        <Label className="text-sm font-semibold">Cube controls</Label>
-                        <RangeControl label="Cell Size" min={4} max={60} value={settings.cubeCellSize} onChange={(value) => updateSetting("cubeCellSize", value)} />
-                        <RangeControl label="H. Spacing" min={50} max={180} value={settings.cubeHSpacing} suffix="%" onChange={(value) => updateSetting("cubeHSpacing", value)} />
-                        <RangeControl label="V. Spacing" min={50} max={180} value={settings.cubeVSpacing} suffix="%" onChange={(value) => updateSetting("cubeVSpacing", value)} />
-                        <RangeControl label="Top Shade" min={0.5} max={2} step={0.05} value={settings.cubeTopShade} onChange={(value) => updateSetting("cubeTopShade", value)} />
-                        <RangeControl label="Light Side" min={0} max={2} step={0.05} value={settings.cubeLightSide} onChange={(value) => updateSetting("cubeLightSide", value)} />
-                        <RangeControl label="Dark Side" min={0} max={1} step={0.05} value={settings.cubeDarkSide} onChange={(value) => updateSetting("cubeDarkSide", value)} />
-                        <RangeControl label="Outline" min={0} max={8} value={settings.cubeOutline} onChange={(value) => updateSetting("cubeOutline", value)} />
-                        <ToggleControl label="Flip Light" checked={settings.cubeFlipLight} onChange={(value) => updateSetting("cubeFlipLight", value)} />
-                      </div>
-                    )}
-                    {settings.style === "disco" && (
-                      <div className="control-subsection">
-                        <Label className="text-sm font-semibold">Disco controls</Label>
-                        <RangeControl label="Uniformity" min={0} max={100} value={settings.discoUniformity} suffix="%" onChange={(value) => updateSetting("discoUniformity", value)} />
-                        <div className="control-row">
-                          <Label className="text-sm font-medium">Pattern</Label>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSettings((current) => ({
-                                ...current,
-                                discoRandomize: true,
-                                discoSeed: (current.discoSeed || 0) + 1
-                              }));
-                              trackEvent("disco_randomize", { seed: (settings.discoSeed || 0) + 1 });
-                              setStatus("Disco pattern randomized");
-                            }}
-                          >
-                            Randomize
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                    {settings.style !== "3d" ? (
-                      <RangeControl label="Font Size" min={3} max={48} value={settings.fontSize} onChange={(value) => updateQualitySetting("fontSize", value)} />
-                    ) : null}
-                    <SelectControl label="Character Set" value={settings.characterSet} onChange={updateCharacterSet} options={[["standard", "Standard"], ["detailed", "Detailed"], ["minimal", "Minimal"], ["custom", "Custom"]]} />
-                    <div className="grid gap-2">
-                      <Label className="text-xs font-medium text-muted-foreground">Chars</Label>
-                      <Input aria-label="Chars" className="bg-secondary/65" value={settings.characters} onChange={(event) => updateQualitySetting("characters", event.target.value)} />
-                    </div>
-                    <SelectControl label="Blend Mode" value={settings.blendMode} onChange={(value) => updateSetting("blendMode", value)} options={[["source-over", "Normal"], ["overlay", "Overlay"], ["color-dodge", "Color Dodge"], ["screen", "Screen"], ["lighter", "Lighter"]]} />
-                    <RangeControl label="Char Opacity" min={0} max={100} value={settings.charOpacity} suffix="%" onChange={(value) => updateSetting("charOpacity", value)} />
-                    <div className="grid gap-2">
-                      <ToggleControl label="Invert Mapping" checked={settings.invert} onChange={(value) => updateSetting("invert", value)} />
-                      <ToggleControl label="Dot Grid Overlay" checked={settings.dotGrid} onChange={(value) => updateSetting("dotGrid", value)} />
-                      <ToggleControl label="Randomize Characters" checked={settings.randomize} onChange={(value) => updateSetting("randomize", value)} />
-                    </div>
-                  </ControlCard>
-
-                  <ControlCard title="Background gallery" description="Backdrop source, blur, and transparency.">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <Label className="text-sm font-semibold">Gallery</Label>
-                      <Badge variant="outline">34 curated backgrounds</Badge>
-                    </div>
-                    <div className="grid max-h-56 grid-cols-2 gap-2 overflow-y-auto pr-1">
-                      {BACKGROUND_PRESETS.map((background) => (
-                        <Button
-                          key={background.id}
-                          variant="outline"
-                          size="sm"
-                          className="justify-start gap-2"
-                          onClick={() => loadBackgroundPreset(background.id)}
-                        >
-                          <span
-                            aria-hidden="true"
-                            className="size-5 rounded-sm border border-border"
-                            style={{ background: `linear-gradient(135deg, ${background.colors.join(", ")})` }}
-                          />
-                          {background.label}
-                        </Button>
-                      ))}
-                    </div>
-                    <Separator />
-                    <SelectControl label="Mode" value={settings.backgroundMode} onChange={(value) => updateSetting("backgroundMode", value)} options={[["blur", "Blurred Image"], ["solid", "Solid Black"], ["original", "Original Image"], ["none", "None (Transparent)"]]} />
-                    <RangeControl label="Blur" min={0} max={60} value={settings.backgroundBlur} suffix="px" onChange={(value) => updateSetting("backgroundBlur", value)} />
-                    <RangeControl label="Opacity" min={0} max={100} value={settings.backgroundOpacity} suffix="%" onChange={(value) => updateSetting("backgroundOpacity", value)} />
-                  </ControlCard>
-
-                  <ControlCard title="Intensity" description="Coverage, edge response, tone, and gamma.">
-                    <div className="grid gap-2">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <Label className="text-xs font-medium text-muted-foreground">Quality Presets</Label>
-                        <Badge variant="outline" className="max-w-full shrink-0">
-                          Active quality preset: {qualityLabel}
-                        </Badge>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                        {[...QUALITY_PRESET_ORDER, "custom"].map((presetId) => {
-                          const label = QUALITY_PRESETS[presetId]?.label || "Custom";
-                          return (
-                            <Button
-                              key={presetId}
-                              type="button"
-                              size="sm"
-                              variant={settings.qualityPreset === presetId ? "secondary" : "outline"}
-                              className="min-w-0"
-                              aria-pressed={settings.qualityPreset === presetId}
-                              onClick={() => selectQualityPreset(presetId)}
-                            >
-                              {label}
-                            </Button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    <RangeControl label="Coverage" min={0} max={100} value={settings.coverage} suffix="%" onChange={(value) => updateQualitySetting("coverage", value)} />
-                    <RangeControl label="Edge Emphasis" min={0} max={100} value={settings.edgeEmphasis} suffix="%" onChange={(value) => updateQualitySetting("edgeEmphasis", value)} />
-                    <RangeControl label="Density" min={0} max={100} value={settings.density} suffix="%" onChange={(value) => updateQualitySetting("density", value)} />
-                    <RangeControl label="Brightness" min={-100} max={100} value={settings.brightness} onChange={(value) => updateQualitySetting("brightness", value)} />
-                    <RangeControl label="Contrast" min={0} max={200} value={settings.contrast} onChange={(value) => updateQualitySetting("contrast", value)} />
-                    <RangeControl label="Gamma" min={40} max={260} value={settings.gamma} suffix="%" onChange={(value) => updateQualitySetting("gamma", value)} />
-                  </ControlCard>
-                </TabsContent>
-
-                <TabsContent value="motion" className="grid">
-                  <ControlCard title="Interactive Motion" description="Pointer field, idle movement, turbulence, and trails.">
-                    <ToggleControl label="Enable Interaction" checked={settings.interactiveMotion} onChange={(value) => updateSetting("interactiveMotion", value)} />
-                    {settings.interactiveMotion ? (
-                      <>
-                        <div className="grid grid-cols-2 gap-3">
-                          <SelectControl label="Behavior" value={settings.pointerMode} onChange={(value) => updateSetting("pointerMode", value)} options={POINTER_MOTION_OPTIONS} />
-                          <SelectControl label="Idle" value={settings.idleMotion} onChange={(value) => updateSetting("idleMotion", value)} options={IDLE_MOTION_OPTIONS} />
-                        </div>
-                        <RangeControl label="Strength" min={0} max={100} value={settings.motionForce} suffix="%" onChange={(value) => updateSetting("motionForce", value)} />
-                        <RangeControl label="Range" min={5} max={60} value={settings.motionRadius} suffix="%" onChange={(value) => updateSetting("motionRadius", value)} />
-                        <RangeControl label="Turbulence" min={0} max={100} value={settings.motionTurbulence} suffix="%" onChange={(value) => updateSetting("motionTurbulence", value)} />
-                        <RangeControl label="Damping" min={50} max={98} value={settings.motionDamping} suffix="%" onChange={(value) => updateSetting("motionDamping", value)} />
-                        <RangeControl label="Trail" min={0} max={100} value={settings.motionTrail} suffix="%" onChange={(value) => updateSetting("motionTrail", value)} />
-                        <div className="grid grid-cols-2 gap-2">
-                          <Button variant="outline" onClick={triggerInteractiveBurst}>
-                            <SparklesIcon data-icon="inline-start" />
-                            Burst
-                          </Button>
-                          <Button variant="outline" onClick={resetInteractiveMotion}>
-                            <RotateCcwIcon data-icon="inline-start" />
-                            Reset Motion
-                          </Button>
-                        </div>
-                      </>
-                    ) : null}
-                  </ControlCard>
-
-                  <ControlCard title="Animation" description="ASCII timing, reveal style, and intensity.">
-                    <ToggleControl label="Animated ASCII" checked={settings.animated} onChange={(value) => updateSetting("animated", value)} />
-                    {settings.animated ? (
-                      <>
-                        <SelectControl label="Animation Style" value={settings.animationStyle} onChange={(value) => updateSetting("animationStyle", value)} options={[["wave", "Wave"], ["cascade-lr", "Cascade Left to Right"], ["cascade-rl", "Cascade Right to Left"], ["cascade-tb", "Cascade Top to Bottom"], ["reveal", "Reveal"], ["pulse", "Pulse"]]} />
-                        <RangeControl label="Speed" min={1} max={8} step={0.1} value={Number((settings.animationSpeed / 1000).toFixed(1))} suffix="s" onChange={(value) => updateSetting("animationSpeed", value * 1000)} />
-                        <RangeControl label="Intensity" min={0} max={100} value={settings.animationIntensity} suffix="%" onChange={(value) => updateSetting("animationIntensity", value)} />
-                        <RangeControl label="Randomness" min={0} max={100} value={settings.animationRandomness} suffix="%" onChange={(value) => updateSetting("animationRandomness", value)} />
-                      </>
-                    ) : null}
-                  </ControlCard>
-
-                  <ControlCard title="Lights" description="Place and shape up to four glow sources.">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <ToggleControl label="Enable Lights" checked={settings.lights} onChange={toggleLights} />
-                      {settings.lights ? <Badge variant="outline" className="w-fit">{lights.length} / 4</Badge> : null}
-                    </div>
-                    {settings.lights ? (
-                      <>
-                        <div className="grid grid-cols-2 gap-2">
-                          <Button variant={canvasTool === "light" ? "secondary" : "outline"} onClick={canvasTool === "light" ? clearCanvasTool : activateLightTool}>
-                            <SparklesIcon data-icon="inline-start" />
-                            {canvasTool === "light" ? "Stop Placing" : "Place Lights"}
-                          </Button>
-                          <Button variant="outline" onClick={() => addLight()}>
-                            <SparklesIcon data-icon="inline-start" />
-                            Add Light
-                          </Button>
-                          <Button variant="outline" disabled={!activeLight} onClick={deleteActiveLight}>
-                            <Trash2Icon data-icon="inline-start" />
-                            Delete
-                          </Button>
-                        </div>
-                        <div
-                          data-light-pad
-                          className="relative h-32 touch-none overflow-hidden rounded-sm border border-border bg-background"
-                          onPointerDown={handleLightPadPointerDown}
-                          onPointerMove={moveLightPadDrag}
-                          onPointerUp={finishLightPadDrag}
-                          onPointerCancel={finishLightPadDrag}
-                        >
-                          {lights.length ? lights.map((light, index) => (
-                            <button
-                              key={light.id}
-                              type="button"
-                              aria-label={`Select light ${index + 1}`}
-                              className="absolute size-6 -translate-x-1/2 -translate-y-1/2 rounded-sm border border-primary bg-primary text-[10px] font-semibold text-primary-foreground"
-                              style={{ left: `${light.x * 100}%`, top: `${light.y * 100}%` }}
-                              onPointerDown={(event) => startLightPadDrag(event, light, index)}
-                              onPointerMove={moveLightPadDrag}
-                              onPointerUp={finishLightPadDrag}
-                              onPointerCancel={finishLightPadDrag}
-                              onClick={() => {
-                                setActiveLightId(light.id);
-                                setStatus(`Light ${index + 1} active`);
-                              }}
-                            >
-                              {index + 1}
-                            </button>
-                          )) : (
-                            <div className="grid h-full place-items-center px-4 text-center text-xs text-muted-foreground">No lights placed</div>
-                          )}
-                        </div>
-                        {Number(settings.fontSize || 0) <= 12 ? (
-                          <p className="text-xs leading-5 text-muted-foreground">
-                            Font size was raised to 12 for lighting performance.
-                          </p>
-                        ) : null}
-                        {activeLight ? (
-                          <>
-                            <Badge variant="secondary" className="w-fit">Light {activeLightIndex + 1} selected</Badge>
-                            <RangeControl label="Light X" min={0} max={100} value={Math.round(activeLight.x * 100)} suffix="%" onChange={(value) => updateActiveLight("x", value / 100)} />
-                            <RangeControl label="Light Y" min={0} max={100} value={Math.round(activeLight.y * 100)} suffix="%" onChange={(value) => updateActiveLight("y", value / 100)} />
-                            <RangeControl label="Radius" min={5} max={100} value={activeLight.radius} onChange={(value) => updateActiveLight("radius", value)} />
-                            <RangeControl label="Light Intensity" min={0} max={100} value={activeLight.intensity} onChange={(value) => updateActiveLight("intensity", value)} />
-                            <RangeControl label="Blur" min={0} max={80} value={activeLight.blur} suffix="px" onChange={(value) => updateActiveLight("blur", value)} />
-                            <RangeControl label="Rotation" min={0} max={360} value={activeLight.rotation} suffix="deg" onChange={(value) => updateActiveLight("rotation", value)} />
-                          </>
-                        ) : (
-                          <Badge variant="outline" className="w-fit">No light selected</Badge>
-                        )}
-                      </>
-                    ) : null}
-                  </ControlCard>
-
-                  <ControlCard title="Mask" description="Draw, invert, and edit the visible glyph area.">
-                    <ToggleControl label="Enable Mask" checked={settings.mask} onChange={toggleMask} />
-                    {settings.mask ? (
-                      <>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Button variant={canvasTool === "mask" ? "secondary" : "outline"} onClick={canvasTool === "mask" ? clearCanvasTool : activateMaskTool}>
-                            <LayersIcon data-icon="inline-start" />
-                            {canvasTool === "mask" ? "Stop Drawing" : "Draw Mask"}
-                          </Button>
-                          <Badge variant="outline">Mask strokes: {maskStrokes.length}</Badge>
-                        </div>
-                        <SelectControl label="Mask Tool" value={settings.maskTool} onChange={(value) => updateSetting("maskTool", value)} options={[["freehand", "Freehand"], ["rect", "Rectangle"], ["ellipse", "Ellipse"]]} />
-                        <RangeControl label="Brush Size" min={5} max={100} value={settings.brushSize} onChange={(value) => updateSetting("brushSize", value)} />
-                        <ToggleControl label="Show Overlay" checked={settings.showMaskOverlay} onChange={(value) => updateSetting("showMaskOverlay", value)} />
-                        <ToggleControl label="Invert Mask" checked={settings.invertMask} onChange={(value) => updateSetting("invertMask", value)} />
-                        <div className="grid grid-cols-2 gap-2">
-                          <Button variant="outline" disabled={!maskStrokes.length} onClick={undoMaskStroke}>Undo Stroke</Button>
-                          <Button variant="outline" disabled={!maskStrokes.length} onClick={clearMask}>Clear Mask</Button>
-                        </div>
-                      </>
-                    ) : null}
-                  </ControlCard>
-                </TabsContent>
-
-                <TabsContent value="finish" className="grid">
-                  <ControlCard title="Export" description="Format, resolution, duration, and frame rate.">
-                    <div className="grid grid-cols-2 gap-3">
-                      <SelectControl label="Format" value={settings.exportFormat} onChange={(value) => updateSetting("exportFormat", value)} options={EXPORT_FORMATS} />
-                      <SelectControl label="Resolution" value={settings.exportScale} onChange={(value) => updateSetting("exportScale", Number(value))} options={[["1", "1x"], ["2", "2x"], ["3", "3x"], ["4", "4x"]]} />
-                      {isTimedExport ? (
-                        <>
-                          <SelectControl label="Animation duration" value={settings.exportDuration} onChange={(value) => updateSetting("exportDuration", Number(value))} options={[["3", "3 seconds"], ["5", "5 seconds"], ["10", "10 seconds"], ["15", "15 seconds"]]} />
-                          <SelectControl label="Frame rate" value={settings.exportFps} onChange={(value) => updateSetting("exportFps", Number(value))} options={[["15", "15 fps"], ["20", "20 fps"], ["24", "24 fps"], ["30", "30 fps"], ["60", "60 fps"]]} />
-                        </>
-                      ) : null}
-                    </div>
-                    <Button onClick={exportCanvas} disabled={exporting}>
-                      <DownloadIcon data-icon="inline-start" />
-                      {exporting ? "Exporting" : "Export"}
-                    </Button>
-                  </ControlCard>
-
-                  <ControlCard title="Post-processing" description="Final passes applied before export.">
-                    <div className="grid gap-2">{effectControls}</div>
-                    {settings.effects.colorOverlay && (
-                      <>
-                        <div className="grid gap-2">
-                          <Label className="text-xs font-medium text-muted-foreground">Color</Label>
-                          <Input aria-label="Color" type="color" value={settings.effects.color} onChange={(event) => updateEffect("color", event.target.value)} />
-                        </div>
-                        <RangeControl label="Color Opacity" min={0} max={100} value={settings.effects.colorOpacity} suffix="%" onChange={(value) => updateEffect("colorOpacity", value)} />
-                        <SelectControl label="Color Blend" value={settings.effects.colorBlend} onChange={(value) => updateEffect("colorBlend", value)} options={[["multiply", "Multiply"], ["overlay", "Overlay"], ["screen", "Screen"], ["color", "Color"], ["hue", "Hue"], ["saturation", "Saturation"], ["luminosity", "Luminosity"], ["soft-light", "Soft Light"], ["hard-light", "Hard Light"], ["color-burn", "Color Burn"], ["color-dodge", "Color Dodge"]]} />
-                      </>
-                    )}
-                  </ControlCard>
-
-                  <ControlCard title="Crop & Rotate" description="Adjust the source frame before rendering.">
-                    <Button variant="outline" onClick={() => setModal("crop")}><CropIcon data-icon="inline-start" />Crop / Rotate</Button>
-                  </ControlCard>
-
-                  <section id="changelog" className="control-section p-4">
-                    <div className="grid gap-1">
-                      <h2 className="text-base font-semibold">Changelog</h2>
-                      <p className="text-sm leading-6 text-muted-foreground">Background gallery, crop editor, masks, lights, animated exports, and post-processing updates.</p>
-                    </div>
-                  </section>
-                </TabsContent>
-              </Tabs>
+          </header>
+          <ScrollArea className="inspector-scroll">
+            <div className="inspector-content">
+              {inspectorContent}
             </div>
           </ScrollArea>
         </aside>
-      </div>
-      </div>
+      ) : null}
+
+      <nav className="mode-rail" aria-label="Shader modes">
+        {STUDIO_MODES.map((mode) => (
+          <button
+            key={mode.id}
+            type="button"
+            className="mode-rail-button"
+            aria-current={activeMode === mode.id ? "page" : undefined}
+            onClick={() => selectStudioMode(mode.id)}
+          >
+            {mode.label}
+          </button>
+        ))}
+      </nav>
 
       <Dialog open={Boolean(modal)} onOpenChange={(open) => !open && setModal(null)}>
         <DialogContent className={modal === "crop" ? "sm:max-w-4xl" : "sm:max-w-lg"}>
@@ -2616,6 +2941,7 @@ function App() {
       </Dialog>
     </div>
   );
+
 }
 
 export default App;
