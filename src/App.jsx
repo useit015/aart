@@ -434,12 +434,12 @@ function ToggleControl({ label, checked, onChange }) {
 
 function ControlCard({ title, description, children, className = "" }) {
   return (
-    <section className={`mission-panel ${className}`}>
-      <header className="mission-panel-header">
+    <section className={`control-section ${className}`}>
+      <header className="control-section-header">
         <h2 className="text-base font-semibold leading-tight">{title}</h2>
         {description ? <p className="text-sm leading-5 text-muted-foreground">{description}</p> : null}
       </header>
-      <div className="mission-panel-body">{children}</div>
+      <div className="control-section-body">{children}</div>
     </section>
   );
 }
@@ -1946,6 +1946,7 @@ function App() {
   const toolStateLabel = canvasTool === "mask" ? "Mask drawing" : canvasTool === "light" ? "Light placement" : settings.interactiveMotion ? "Pointer motion" : "Preview";
   const qualityLabel = QUALITY_PRESETS[settings.qualityPreset]?.label || "Custom";
   const exportLabel = `${settings.exportFormat.toUpperCase()} ${settings.exportScale}x`;
+  const isTimedExport = settings.exportFormat === "gif" || settings.exportFormat.startsWith("mp4");
 
   if (route === "/changelog") {
     return <ChangelogPage onBack={() => navigate("/")} />;
@@ -1957,7 +1958,7 @@ function App() {
       <div className="relative z-10 mx-auto grid min-h-screen max-w-[1500px] gap-4 p-3 lg:grid-rows-[auto_minmax(0,1fr)] lg:p-4">
         <header className="rail-surface flex flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="grid size-10 shrink-0 place-items-center rounded-md border border-primary/50 bg-primary/10 text-primary">
+            <div className="grid size-10 shrink-0 place-items-center rounded-sm border border-border bg-secondary text-foreground">
               <ImageUpIcon className="size-5" aria-hidden="true" />
             </div>
             <div className="min-w-0">
@@ -2034,7 +2035,7 @@ function App() {
                 ref={canvasRef}
                 data-testid="ascii-canvas"
                 aria-label="ASCII art preview"
-                className={`max-h-[calc(100vh-11rem)] w-full max-w-[1120px] touch-none rounded-md object-contain ${
+                className={`max-h-[calc(100vh-11rem)] w-full max-w-[1120px] touch-none rounded-sm object-contain ${
                   canvasTool === "mask" ? "cursor-crosshair" : canvasTool === "light" ? "cursor-cell" : ""
                 }`}
                 onPointerEnter={updateCanvasPointerMotion}
@@ -2052,7 +2053,7 @@ function App() {
                   aria-label="Open source upload"
                 >
                   <span className="grid max-w-sm gap-3">
-                    <span className="mx-auto grid size-12 place-items-center rounded-md border border-primary/60 bg-primary/10 text-primary">
+                    <span className="mx-auto grid size-12 place-items-center rounded-sm border border-border bg-secondary text-foreground">
                       <ImageUpIcon className="size-6" aria-hidden="true" />
                     </span>
                     <span className="text-lg font-semibold">Drop an image or video here</span>
@@ -2081,10 +2082,12 @@ function App() {
                 />
               ) : null}
             </div>
-            <div className="absolute inset-x-3 bottom-3 z-10 flex items-center justify-between gap-3 rounded-md border border-border bg-background/92 px-3 py-2 text-sm">
-              <span className="truncate font-medium text-foreground">{status}</span>
-              <span className="shrink-0 text-xs text-muted-foreground">{sourceResolutionLabel}</span>
-            </div>
+            {sourceUrl ? (
+              <div className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-between gap-3 border-t border-border bg-background/95 px-3 py-2 text-sm">
+                <span className="truncate font-medium text-foreground">{status}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{sourceResolutionLabel}</span>
+              </div>
+            ) : null}
           </main>
 
           <aside className="rail-surface flex min-h-0 flex-col overflow-hidden lg:max-h-[calc(100vh-6rem)]">
@@ -2099,26 +2102,26 @@ function App() {
             <ScrollArea className="lg:h-[calc(100vh-10rem)]">
             <div className="p-3 lg:p-4">
               <Tabs defaultValue="source" className="gap-4">
-                <TabsList className="grid h-auto w-full grid-cols-4 gap-1 bg-secondary/70 p-1">
-                  <TabsTrigger value="source" className="h-10 px-1 text-xs sm:text-sm">
+                <TabsList className="grid h-auto w-full grid-cols-4 gap-0 border-b border-border bg-transparent p-0">
+                  <TabsTrigger value="source" className="h-10 rounded-none border-r border-border px-1 text-xs sm:text-sm">
                     <ImageUpIcon className="size-3.5" aria-hidden="true" />
                     Source
                   </TabsTrigger>
-                  <TabsTrigger value="look" className="h-10 px-1 text-xs sm:text-sm">
+                  <TabsTrigger value="look" className="h-10 rounded-none border-r border-border px-1 text-xs sm:text-sm">
                     <SparklesIcon className="size-3.5" aria-hidden="true" />
                     Style
                   </TabsTrigger>
-                  <TabsTrigger value="motion" className="h-10 px-1 text-xs sm:text-sm">
+                  <TabsTrigger value="motion" className="h-10 rounded-none border-r border-border px-1 text-xs sm:text-sm">
                     <LayersIcon className="size-3.5" aria-hidden="true" />
                     Motion
                   </TabsTrigger>
-                  <TabsTrigger value="finish" className="h-10 px-1 text-xs sm:text-sm">
+                  <TabsTrigger value="finish" className="h-10 rounded-none px-1 text-xs sm:text-sm">
                     <DownloadIcon className="size-3.5" aria-hidden="true" />
                     Export
                   </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="source" className="grid gap-4">
+                <TabsContent value="source" className="grid">
                   <ControlCard title="Load source" description="Images and videos render through the same preview engine.">
                     <Button onClick={() => fileRef.current?.click()}>
                       <ImageUpIcon data-icon="inline-start" />
@@ -2130,26 +2133,28 @@ function App() {
                     </div>
                   </ControlCard>
 
-                  <ControlCard title="Video transport" description="Frame selection and speed stay available for still media too.">
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button variant="outline" onClick={playVideo}><PlayIcon data-icon="inline-start" />Play</Button>
-                      <Button variant="outline" onClick={stopVideo}><SquareIcon data-icon="inline-start" />Stop</Button>
-                    </div>
-                    <RangeControl label="Seek" min={0} max={Math.max(0.1, duration)} step={0.1} value={Number(seek.toFixed(1))} onChange={updateSeek} />
-                    <SelectControl label="Speed" value={playbackRate} onChange={updatePlaybackRate} options={[["0.25", "0.25x"], ["0.5", "0.5x"], ["1", "1x"], ["1.5", "1.5x"], ["2", "2x"]]} />
-                    <div className="flex flex-wrap gap-2">
-                      <Badge variant="secondary" className="w-fit">FPS 30</Badge>
-                      <Badge variant="outline" className="w-fit">{isPlaying ? "Playing" : "Stopped"}</Badge>
-                    </div>
-                  </ControlCard>
+                  {sourceKind.startsWith("video") ? (
+                    <ControlCard title="Video transport" description="Playback, frame selection, and speed.">
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button variant="outline" onClick={playVideo}><PlayIcon data-icon="inline-start" />Play</Button>
+                        <Button variant="outline" onClick={stopVideo}><SquareIcon data-icon="inline-start" />Stop</Button>
+                      </div>
+                      <RangeControl label="Seek" min={0} max={Math.max(0.1, duration)} step={0.1} value={Number(seek.toFixed(1))} onChange={updateSeek} />
+                      <SelectControl label="Speed" value={playbackRate} onChange={updatePlaybackRate} options={[["0.25", "0.25x"], ["0.5", "0.5x"], ["1", "1x"], ["1.5", "1.5x"], ["2", "2x"]]} />
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant="secondary" className="w-fit">FPS 30</Badge>
+                        <Badge variant="outline" className="w-fit">{isPlaying ? "Playing" : "Stopped"}</Badge>
+                      </div>
+                    </ControlCard>
+                  ) : null}
                 </TabsContent>
 
-                <TabsContent value="look" className="grid gap-4">
+                <TabsContent value="look" className="grid">
                   <ControlCard title="Render style" description="Character system, blend, and output texture.">
                     <SelectControl label="Style" value={settings.style} onChange={(value) => updateSetting("style", value)} options={Object.entries(STYLE_LABELS)} />
                     {settings.style === "mosaic" && <SelectControl label="Tile Shape" value={settings.tileShape} onChange={(value) => updateSetting("tileShape", value)} options={[["square", "Square"], ["wide", "Wide"], ["tall", "Tall"]]} />}
                     {settings.style === "3d" && (
-                      <div className="grid gap-3 rounded-md border border-border bg-secondary/45 p-3">
+                      <div className="control-subsection">
                         <Label className="text-sm font-semibold">Cube controls</Label>
                         <RangeControl label="Cell Size" min={4} max={60} value={settings.cubeCellSize} onChange={(value) => updateSetting("cubeCellSize", value)} />
                         <RangeControl label="H. Spacing" min={50} max={180} value={settings.cubeHSpacing} suffix="%" onChange={(value) => updateSetting("cubeHSpacing", value)} />
@@ -2162,7 +2167,7 @@ function App() {
                       </div>
                     )}
                     {settings.style === "disco" && (
-                      <div className="grid gap-3 rounded-md border border-border bg-secondary/45 p-3">
+                      <div className="control-subsection">
                         <Label className="text-sm font-semibold">Disco controls</Label>
                         <RangeControl label="Uniformity" min={0} max={100} value={settings.discoUniformity} suffix="%" onChange={(value) => updateSetting("discoUniformity", value)} />
                         <div className="control-row">
@@ -2267,134 +2272,154 @@ function App() {
                   </ControlCard>
                 </TabsContent>
 
-                <TabsContent value="motion" className="grid gap-4">
+                <TabsContent value="motion" className="grid">
                   <ControlCard title="Interactive Motion" description="Pointer field, idle movement, turbulence, and trails.">
                     <ToggleControl label="Enable Interaction" checked={settings.interactiveMotion} onChange={(value) => updateSetting("interactiveMotion", value)} />
-                    <div className="grid grid-cols-2 gap-3">
-                      <SelectControl label="Behavior" value={settings.pointerMode} onChange={(value) => updateSetting("pointerMode", value)} options={POINTER_MOTION_OPTIONS} />
-                      <SelectControl label="Idle" value={settings.idleMotion} onChange={(value) => updateSetting("idleMotion", value)} options={IDLE_MOTION_OPTIONS} />
-                    </div>
-                    <RangeControl label="Strength" min={0} max={100} value={settings.motionForce} suffix="%" onChange={(value) => updateSetting("motionForce", value)} />
-                    <RangeControl label="Range" min={5} max={60} value={settings.motionRadius} suffix="%" onChange={(value) => updateSetting("motionRadius", value)} />
-                    <RangeControl label="Turbulence" min={0} max={100} value={settings.motionTurbulence} suffix="%" onChange={(value) => updateSetting("motionTurbulence", value)} />
-                    <RangeControl label="Damping" min={50} max={98} value={settings.motionDamping} suffix="%" onChange={(value) => updateSetting("motionDamping", value)} />
-                    <RangeControl label="Trail" min={0} max={100} value={settings.motionTrail} suffix="%" onChange={(value) => updateSetting("motionTrail", value)} />
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button variant="outline" onClick={triggerInteractiveBurst}>
-                        <SparklesIcon data-icon="inline-start" />
-                        Burst
-                      </Button>
-                      <Button variant="outline" onClick={resetInteractiveMotion}>
-                        <RotateCcwIcon data-icon="inline-start" />
-                        Reset Motion
-                      </Button>
-                    </div>
+                    {settings.interactiveMotion ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-3">
+                          <SelectControl label="Behavior" value={settings.pointerMode} onChange={(value) => updateSetting("pointerMode", value)} options={POINTER_MOTION_OPTIONS} />
+                          <SelectControl label="Idle" value={settings.idleMotion} onChange={(value) => updateSetting("idleMotion", value)} options={IDLE_MOTION_OPTIONS} />
+                        </div>
+                        <RangeControl label="Strength" min={0} max={100} value={settings.motionForce} suffix="%" onChange={(value) => updateSetting("motionForce", value)} />
+                        <RangeControl label="Range" min={5} max={60} value={settings.motionRadius} suffix="%" onChange={(value) => updateSetting("motionRadius", value)} />
+                        <RangeControl label="Turbulence" min={0} max={100} value={settings.motionTurbulence} suffix="%" onChange={(value) => updateSetting("motionTurbulence", value)} />
+                        <RangeControl label="Damping" min={50} max={98} value={settings.motionDamping} suffix="%" onChange={(value) => updateSetting("motionDamping", value)} />
+                        <RangeControl label="Trail" min={0} max={100} value={settings.motionTrail} suffix="%" onChange={(value) => updateSetting("motionTrail", value)} />
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button variant="outline" onClick={triggerInteractiveBurst}>
+                            <SparklesIcon data-icon="inline-start" />
+                            Burst
+                          </Button>
+                          <Button variant="outline" onClick={resetInteractiveMotion}>
+                            <RotateCcwIcon data-icon="inline-start" />
+                            Reset Motion
+                          </Button>
+                        </div>
+                      </>
+                    ) : null}
                   </ControlCard>
 
                   <ControlCard title="Animation" description="ASCII timing, reveal style, and intensity.">
                     <ToggleControl label="Animated ASCII" checked={settings.animated} onChange={(value) => updateSetting("animated", value)} />
-                    <SelectControl label="Animation Style" value={settings.animationStyle} onChange={(value) => updateSetting("animationStyle", value)} options={[["wave", "Wave"], ["cascade-lr", "Cascade Left to Right"], ["cascade-rl", "Cascade Right to Left"], ["cascade-tb", "Cascade Top to Bottom"], ["reveal", "Reveal"], ["pulse", "Pulse"]]} />
-                    <RangeControl label="Speed" min={1} max={8} step={0.1} value={Number((settings.animationSpeed / 1000).toFixed(1))} suffix="s" onChange={(value) => updateSetting("animationSpeed", value * 1000)} />
-                    <RangeControl label="Intensity" min={0} max={100} value={settings.animationIntensity} suffix="%" onChange={(value) => updateSetting("animationIntensity", value)} />
-                    <RangeControl label="Randomness" min={0} max={100} value={settings.animationRandomness} suffix="%" onChange={(value) => updateSetting("animationRandomness", value)} />
+                    {settings.animated ? (
+                      <>
+                        <SelectControl label="Animation Style" value={settings.animationStyle} onChange={(value) => updateSetting("animationStyle", value)} options={[["wave", "Wave"], ["cascade-lr", "Cascade Left to Right"], ["cascade-rl", "Cascade Right to Left"], ["cascade-tb", "Cascade Top to Bottom"], ["reveal", "Reveal"], ["pulse", "Pulse"]]} />
+                        <RangeControl label="Speed" min={1} max={8} step={0.1} value={Number((settings.animationSpeed / 1000).toFixed(1))} suffix="s" onChange={(value) => updateSetting("animationSpeed", value * 1000)} />
+                        <RangeControl label="Intensity" min={0} max={100} value={settings.animationIntensity} suffix="%" onChange={(value) => updateSetting("animationIntensity", value)} />
+                        <RangeControl label="Randomness" min={0} max={100} value={settings.animationRandomness} suffix="%" onChange={(value) => updateSetting("animationRandomness", value)} />
+                      </>
+                    ) : null}
                   </ControlCard>
 
                   <ControlCard title="Lights" description="Place and shape up to four glow sources.">
                     <div className="flex flex-wrap items-center gap-2">
                       <ToggleControl label="Enable Lights" checked={settings.lights} onChange={toggleLights} />
-                      <Badge variant="outline" className="w-fit">{lights.length} / 4</Badge>
+                      {settings.lights ? <Badge variant="outline" className="w-fit">{lights.length} / 4</Badge> : null}
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button variant={canvasTool === "light" ? "secondary" : "outline"} onClick={canvasTool === "light" ? clearCanvasTool : activateLightTool}>
-                        <SparklesIcon data-icon="inline-start" />
-                        {canvasTool === "light" ? "Stop Placing" : "Place Lights"}
-                      </Button>
-                      <Button variant="outline" onClick={() => addLight()}>
-                        <SparklesIcon data-icon="inline-start" />
-                        Add Light
-                      </Button>
-                      <Button variant="outline" disabled={!activeLight} onClick={deleteActiveLight}>
-                        <Trash2Icon data-icon="inline-start" />
-                        Delete
-                      </Button>
-                    </div>
-                    <div
-                      data-light-pad
-                      className="relative h-32 touch-none overflow-hidden rounded-md border border-border bg-secondary/45"
-                      onPointerDown={handleLightPadPointerDown}
-                      onPointerMove={moveLightPadDrag}
-                      onPointerUp={finishLightPadDrag}
-                      onPointerCancel={finishLightPadDrag}
-                    >
-                      {lights.length ? lights.map((light, index) => (
-                        <button
-                          key={light.id}
-                          type="button"
-                          aria-label={`Select light ${index + 1}`}
-                          className="absolute size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border border-primary bg-primary text-[10px] font-semibold text-primary-foreground shadow-lg"
-                          style={{ left: `${light.x * 100}%`, top: `${light.y * 100}%` }}
-                          onPointerDown={(event) => startLightPadDrag(event, light, index)}
+                    {settings.lights ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button variant={canvasTool === "light" ? "secondary" : "outline"} onClick={canvasTool === "light" ? clearCanvasTool : activateLightTool}>
+                            <SparklesIcon data-icon="inline-start" />
+                            {canvasTool === "light" ? "Stop Placing" : "Place Lights"}
+                          </Button>
+                          <Button variant="outline" onClick={() => addLight()}>
+                            <SparklesIcon data-icon="inline-start" />
+                            Add Light
+                          </Button>
+                          <Button variant="outline" disabled={!activeLight} onClick={deleteActiveLight}>
+                            <Trash2Icon data-icon="inline-start" />
+                            Delete
+                          </Button>
+                        </div>
+                        <div
+                          data-light-pad
+                          className="relative h-32 touch-none overflow-hidden rounded-sm border border-border bg-background"
+                          onPointerDown={handleLightPadPointerDown}
                           onPointerMove={moveLightPadDrag}
                           onPointerUp={finishLightPadDrag}
                           onPointerCancel={finishLightPadDrag}
-                          onClick={() => {
-                            setActiveLightId(light.id);
-                            setStatus(`Light ${index + 1} active`);
-                          }}
                         >
-                          {index + 1}
-                        </button>
-                      )) : (
-                        <div className="grid h-full place-items-center px-4 text-center text-xs text-muted-foreground">No lights placed</div>
-                      )}
-                    </div>
-                    {settings.lights && Number(settings.fontSize || 0) <= 12 ? (
-                      <p className="text-xs leading-5 text-muted-foreground">
-                        Font size was raised to 12 for lighting performance.
-                      </p>
-                    ) : null}
-                    {activeLight ? (
-                      <>
-                        <Badge variant="secondary" className="w-fit">Light {activeLightIndex + 1} selected</Badge>
-                        <RangeControl label="Light X" min={0} max={100} value={Math.round(activeLight.x * 100)} suffix="%" onChange={(value) => updateActiveLight("x", value / 100)} />
-                        <RangeControl label="Light Y" min={0} max={100} value={Math.round(activeLight.y * 100)} suffix="%" onChange={(value) => updateActiveLight("y", value / 100)} />
-                        <RangeControl label="Radius" min={5} max={100} value={activeLight.radius} onChange={(value) => updateActiveLight("radius", value)} />
-                        <RangeControl label="Light Intensity" min={0} max={100} value={activeLight.intensity} onChange={(value) => updateActiveLight("intensity", value)} />
-                        <RangeControl label="Blur" min={0} max={80} value={activeLight.blur} suffix="px" onChange={(value) => updateActiveLight("blur", value)} />
-                        <RangeControl label="Rotation" min={0} max={360} value={activeLight.rotation} suffix="deg" onChange={(value) => updateActiveLight("rotation", value)} />
+                          {lights.length ? lights.map((light, index) => (
+                            <button
+                              key={light.id}
+                              type="button"
+                              aria-label={`Select light ${index + 1}`}
+                              className="absolute size-6 -translate-x-1/2 -translate-y-1/2 rounded-sm border border-primary bg-primary text-[10px] font-semibold text-primary-foreground"
+                              style={{ left: `${light.x * 100}%`, top: `${light.y * 100}%` }}
+                              onPointerDown={(event) => startLightPadDrag(event, light, index)}
+                              onPointerMove={moveLightPadDrag}
+                              onPointerUp={finishLightPadDrag}
+                              onPointerCancel={finishLightPadDrag}
+                              onClick={() => {
+                                setActiveLightId(light.id);
+                                setStatus(`Light ${index + 1} active`);
+                              }}
+                            >
+                              {index + 1}
+                            </button>
+                          )) : (
+                            <div className="grid h-full place-items-center px-4 text-center text-xs text-muted-foreground">No lights placed</div>
+                          )}
+                        </div>
+                        {Number(settings.fontSize || 0) <= 12 ? (
+                          <p className="text-xs leading-5 text-muted-foreground">
+                            Font size was raised to 12 for lighting performance.
+                          </p>
+                        ) : null}
+                        {activeLight ? (
+                          <>
+                            <Badge variant="secondary" className="w-fit">Light {activeLightIndex + 1} selected</Badge>
+                            <RangeControl label="Light X" min={0} max={100} value={Math.round(activeLight.x * 100)} suffix="%" onChange={(value) => updateActiveLight("x", value / 100)} />
+                            <RangeControl label="Light Y" min={0} max={100} value={Math.round(activeLight.y * 100)} suffix="%" onChange={(value) => updateActiveLight("y", value / 100)} />
+                            <RangeControl label="Radius" min={5} max={100} value={activeLight.radius} onChange={(value) => updateActiveLight("radius", value)} />
+                            <RangeControl label="Light Intensity" min={0} max={100} value={activeLight.intensity} onChange={(value) => updateActiveLight("intensity", value)} />
+                            <RangeControl label="Blur" min={0} max={80} value={activeLight.blur} suffix="px" onChange={(value) => updateActiveLight("blur", value)} />
+                            <RangeControl label="Rotation" min={0} max={360} value={activeLight.rotation} suffix="deg" onChange={(value) => updateActiveLight("rotation", value)} />
+                          </>
+                        ) : (
+                          <Badge variant="outline" className="w-fit">No light selected</Badge>
+                        )}
                       </>
-                    ) : (
-                      <Badge variant="outline" className="w-fit">No light selected</Badge>
-                    )}
+                    ) : null}
                   </ControlCard>
 
                   <ControlCard title="Mask" description="Draw, invert, and edit the visible glyph area.">
                     <ToggleControl label="Enable Mask" checked={settings.mask} onChange={toggleMask} />
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button variant={canvasTool === "mask" ? "secondary" : "outline"} onClick={canvasTool === "mask" ? clearCanvasTool : activateMaskTool}>
-                        <LayersIcon data-icon="inline-start" />
-                        {canvasTool === "mask" ? "Stop Drawing" : "Draw Mask"}
-                      </Button>
-                      <Badge variant="outline">Mask strokes: {maskStrokes.length}</Badge>
-                    </div>
-                    <SelectControl label="Mask Tool" value={settings.maskTool} onChange={(value) => updateSetting("maskTool", value)} options={[["freehand", "Freehand"], ["rect", "Rectangle"], ["ellipse", "Ellipse"]]} />
-                    <RangeControl label="Brush Size" min={5} max={100} value={settings.brushSize} onChange={(value) => updateSetting("brushSize", value)} />
-                    <ToggleControl label="Show Overlay" checked={settings.showMaskOverlay} onChange={(value) => updateSetting("showMaskOverlay", value)} />
-                    <ToggleControl label="Invert Mask" checked={settings.invertMask} onChange={(value) => updateSetting("invertMask", value)} />
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button variant="outline" disabled={!maskStrokes.length} onClick={undoMaskStroke}>Undo Stroke</Button>
-                      <Button variant="outline" disabled={!maskStrokes.length} onClick={clearMask}>Clear Mask</Button>
-                    </div>
+                    {settings.mask ? (
+                      <>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button variant={canvasTool === "mask" ? "secondary" : "outline"} onClick={canvasTool === "mask" ? clearCanvasTool : activateMaskTool}>
+                            <LayersIcon data-icon="inline-start" />
+                            {canvasTool === "mask" ? "Stop Drawing" : "Draw Mask"}
+                          </Button>
+                          <Badge variant="outline">Mask strokes: {maskStrokes.length}</Badge>
+                        </div>
+                        <SelectControl label="Mask Tool" value={settings.maskTool} onChange={(value) => updateSetting("maskTool", value)} options={[["freehand", "Freehand"], ["rect", "Rectangle"], ["ellipse", "Ellipse"]]} />
+                        <RangeControl label="Brush Size" min={5} max={100} value={settings.brushSize} onChange={(value) => updateSetting("brushSize", value)} />
+                        <ToggleControl label="Show Overlay" checked={settings.showMaskOverlay} onChange={(value) => updateSetting("showMaskOverlay", value)} />
+                        <ToggleControl label="Invert Mask" checked={settings.invertMask} onChange={(value) => updateSetting("invertMask", value)} />
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button variant="outline" disabled={!maskStrokes.length} onClick={undoMaskStroke}>Undo Stroke</Button>
+                          <Button variant="outline" disabled={!maskStrokes.length} onClick={clearMask}>Clear Mask</Button>
+                        </div>
+                      </>
+                    ) : null}
                   </ControlCard>
                 </TabsContent>
 
-                <TabsContent value="finish" className="grid gap-4">
+                <TabsContent value="finish" className="grid">
                   <ControlCard title="Export" description="Format, resolution, duration, and frame rate.">
                     <div className="grid grid-cols-2 gap-3">
                       <SelectControl label="Format" value={settings.exportFormat} onChange={(value) => updateSetting("exportFormat", value)} options={EXPORT_FORMATS} />
                       <SelectControl label="Resolution" value={settings.exportScale} onChange={(value) => updateSetting("exportScale", Number(value))} options={[["1", "1x"], ["2", "2x"], ["3", "3x"], ["4", "4x"]]} />
-                      <SelectControl label="Animation duration" value={settings.exportDuration} onChange={(value) => updateSetting("exportDuration", Number(value))} options={[["3", "3 seconds"], ["5", "5 seconds"], ["10", "10 seconds"], ["15", "15 seconds"]]} />
-                      <SelectControl label="Frame rate" value={settings.exportFps} onChange={(value) => updateSetting("exportFps", Number(value))} options={[["15", "15 fps"], ["20", "20 fps"], ["24", "24 fps"], ["30", "30 fps"], ["60", "60 fps"]]} />
+                      {isTimedExport ? (
+                        <>
+                          <SelectControl label="Animation duration" value={settings.exportDuration} onChange={(value) => updateSetting("exportDuration", Number(value))} options={[["3", "3 seconds"], ["5", "5 seconds"], ["10", "10 seconds"], ["15", "15 seconds"]]} />
+                          <SelectControl label="Frame rate" value={settings.exportFps} onChange={(value) => updateSetting("exportFps", Number(value))} options={[["15", "15 fps"], ["20", "20 fps"], ["24", "24 fps"], ["30", "30 fps"], ["60", "60 fps"]]} />
+                        </>
+                      ) : null}
                     </div>
                     <Button onClick={exportCanvas} disabled={exporting}>
                       <DownloadIcon data-icon="inline-start" />
@@ -2420,7 +2445,7 @@ function App() {
                     <Button variant="outline" onClick={() => setModal("crop")}><CropIcon data-icon="inline-start" />Crop / Rotate</Button>
                   </ControlCard>
 
-                  <section id="changelog" className="mission-panel p-4">
+                  <section id="changelog" className="control-section p-4">
                     <div className="grid gap-1">
                       <h2 className="text-base font-semibold">Changelog</h2>
                       <p className="text-sm leading-6 text-muted-foreground">Background gallery, crop editor, masks, lights, animated exports, and post-processing updates.</p>
@@ -2454,7 +2479,7 @@ function App() {
                 <DialogDescription>Describe what happened and how to reproduce it.</DialogDescription>
               </DialogHeader>
               <Textarea placeholder="Tell us what went wrong..." />
-              <section className="mission-panel p-3">
+              <section className="border border-border p-3">
                 <h3 className="text-sm font-semibold">Technical details (auto-captured)</h3>
                 <p className="mt-1 break-all text-sm leading-5 text-muted-foreground">{technicalDetails}</p>
               </section>
@@ -2527,7 +2552,7 @@ function App() {
               </DialogHeader>
               <div
                 data-crop-surface
-                className="relative aspect-video overflow-hidden rounded-md border bg-[linear-gradient(90deg,transparent_32.8%,var(--border)_33%,transparent_33.2%,transparent_66.1%,var(--border)_66.3%,transparent_66.5%),linear-gradient(0deg,transparent_32.8%,var(--border)_33%,transparent_33.2%,transparent_66.1%,var(--border)_66.3%,transparent_66.5%)]"
+                className="relative aspect-video overflow-hidden rounded-sm border bg-[linear-gradient(90deg,transparent_32.8%,var(--border)_33%,transparent_33.2%,transparent_66.1%,var(--border)_66.3%,transparent_66.5%),linear-gradient(0deg,transparent_32.8%,var(--border)_33%,transparent_33.2%,transparent_66.1%,var(--border)_66.3%,transparent_66.5%)]"
               >
                 <div
                   className="absolute cursor-move border-2 border-primary bg-primary/10 shadow-[0_0_0_999px_rgba(0,0,0,.38)]"
@@ -2548,7 +2573,7 @@ function App() {
                       key={handle}
                       type="button"
                       aria-label={`Crop handle ${label}`}
-                      className="absolute size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border bg-primary shadow-sm"
+                      className="absolute size-4 -translate-x-1/2 -translate-y-1/2 rounded-sm border bg-primary shadow-sm"
                       style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
                       onPointerDown={(event) => startCropDrag(event, handle)}
                       onPointerMove={moveCropDrag}

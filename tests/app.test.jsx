@@ -41,6 +41,7 @@ describe("Glyph Studio app shell", () => {
     expect(screen.queryByRole("button", { name: "Demo 02" })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("tab", { name: "Motion" }));
+    await userEvent.click(screen.getByRole("switch", { name: "Enable Lights" }));
     await userEvent.click(screen.getByRole("button", { name: "Add Light" }));
     expect(screen.getByText(/Light 1 selected/i)).toBeInTheDocument();
 
@@ -53,13 +54,15 @@ describe("Glyph Studio app shell", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
   });
 
-  it("exposes final public parity controls for timed exports, crop handles, and effect intensity", async () => {
+  it("keeps export timing and effect intensity controls behind relevant choices", async () => {
     render(<App />);
 
     expect(screen.queryByText("Video demos")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("tab", { name: "Export" }));
-    expect(screen.getByText("Animation duration")).toBeInTheDocument();
-    expect(screen.getByText("Frame rate")).toBeInTheDocument();
+    expect(screen.queryByText("Animation duration")).not.toBeInTheDocument();
+    expect(screen.queryByText("Frame rate")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Format")).toBeInTheDocument();
+    expect(screen.getByLabelText("Resolution")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Export" })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("switch", { name: "Glitch" }));
@@ -104,6 +107,7 @@ describe("Glyph Studio app shell", () => {
     expect(screen.queryByRole("button", { name: "Video 01" })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("tab", { name: "Motion" }));
+    await userEvent.click(screen.getByRole("switch", { name: "Enable Lights" }));
     expect(screen.getByText("0 / 4")).toBeInTheDocument();
     expect(screen.getByText("No lights placed")).toBeInTheDocument();
   });
@@ -114,7 +118,10 @@ describe("Glyph Studio app shell", () => {
     await userEvent.click(screen.getByRole("tab", { name: "Motion" }));
 
     expect(screen.queryByText("Preview Tool")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Place Lights" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Place Lights" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Draw Mask" })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("switch", { name: "Enable Mask" }));
     expect(screen.getByRole("button", { name: "Draw Mask" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Undo Stroke" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Clear Mask" })).toBeDisabled();
@@ -129,6 +136,8 @@ describe("Glyph Studio app shell", () => {
     await userEvent.click(screen.getByRole("button", { name: "Undo Stroke" }));
     expect(screen.getByText("Mask strokes: 0")).toBeInTheDocument();
 
+    await userEvent.click(screen.getByRole("switch", { name: "Enable Lights" }));
+    expect(screen.getByRole("button", { name: "Place Lights" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Place Lights" }));
     expect(screen.getByRole("button", { name: "Stop Placing" })).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Enable Lights" })).toBeChecked();
@@ -177,22 +186,29 @@ describe("Glyph Studio app shell", () => {
 
     expect(screen.getByText("Interactive Motion")).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Enable Interaction" })).not.toBeChecked();
-    expect(screen.getByLabelText("Behavior")).toBeInTheDocument();
-    expect(screen.getByLabelText("Idle")).toBeInTheDocument();
-    expect(screen.getByText("Strength")).toBeInTheDocument();
-    expect(screen.getByText("Range")).toBeInTheDocument();
-    expect(screen.getByText("Turbulence")).toBeInTheDocument();
-    expect(screen.getByText("Damping")).toBeInTheDocument();
-    expect(screen.getByText("Trail")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Behavior")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Idle")).not.toBeInTheDocument();
+    expect(screen.queryByText("Strength")).not.toBeInTheDocument();
+    expect(screen.queryByText("Range")).not.toBeInTheDocument();
+    expect(screen.queryByText("Turbulence")).not.toBeInTheDocument();
+    expect(screen.queryByText("Damping")).not.toBeInTheDocument();
+    expect(screen.queryByText("Trail")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Pointer")).not.toBeInTheDocument();
     expect(screen.queryByText("Motion Amount")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Burst" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Reset Motion" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Place Lights" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Draw Mask" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Burst" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reset Motion" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Place Lights" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Draw Mask" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Animation Style")).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("switch", { name: "Enable Interaction" }));
     expect(screen.getByRole("switch", { name: "Enable Interaction" })).toBeChecked();
+    expect(screen.getByLabelText("Behavior")).toBeInTheDocument();
+    expect(screen.getByText("Strength")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Burst" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("switch", { name: "Animated ASCII" }));
+    expect(screen.getByLabelText("Animation Style")).toBeInTheDocument();
   });
 
   it("supports the standalone changelog route", () => {
