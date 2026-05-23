@@ -420,6 +420,15 @@ function prefersReducedMotion() {
   return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 }
 
+function readCssMs(name, fallback) {
+  if (typeof window === "undefined") return fallback;
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  if (!raw) return fallback;
+  const value = parseFloat(raw);
+  if (!Number.isFinite(value)) return fallback;
+  return raw.endsWith("s") && !raw.endsWith("ms") ? value * 1000 : value;
+}
+
 function createBackgroundDataUrl(seed = 0) {
   const preset = BACKGROUND_PRESETS[(seed - 1 + BACKGROUND_PRESETS.length) % BACKGROUND_PRESETS.length] || BACKGROUND_PRESETS[0];
   const [a, b, c] = preset.colors;
@@ -610,6 +619,86 @@ function cloneCanvasAtScale(canvas, scale = 1) {
   return exportCanvas;
 }
 
+function DigitGroup({ value }) {
+  const text = String(value);
+  const chars = text.split("");
+
+  return (
+    <span className="t-digit-group is-animating" aria-label={text}>
+      <span className="sr-only">{text}</span>
+      {chars.map((char, index) => {
+        const stagger = index === chars.length - 2 ? "1" : index === chars.length - 1 ? "2" : undefined;
+        return (
+          <span key={`${char}-${index}`} className="t-digit" data-stagger={stagger} aria-hidden="true">
+            {char}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+function TextSwap({ text }) {
+  const ref = useRef(null);
+  const [displayText, setDisplayText] = useState(text);
+
+  useEffect(() => {
+    if (text === displayText) return undefined;
+    const el = ref.current;
+    if (!el || prefersReducedMotion()) {
+      setDisplayText(text);
+      return undefined;
+    }
+
+    const duration = readCssMs("--text-swap-dur", 150);
+    el.classList.add("is-exit");
+    const timer = window.setTimeout(() => {
+      setDisplayText(text);
+      window.requestAnimationFrame(() => {
+        const current = ref.current;
+        if (!current) return;
+        current.classList.remove("is-exit");
+        current.classList.add("is-enter-start");
+        void current.offsetHeight;
+        current.classList.remove("is-enter-start");
+      });
+    }, duration);
+
+    return () => window.clearTimeout(timer);
+  }, [displayText, text]);
+
+  return <span ref={ref} className="t-text-swap">{displayText}</span>;
+}
+
+function SuccessCheck() {
+  const wrapRef = useRef(null);
+  const pathRef = useRef(null);
+
+  useEffect(() => {
+    const path = pathRef.current;
+    if (!path?.getTotalLength) return;
+    const length = Math.ceil(path.getTotalLength() + 1);
+    path.style.strokeDasharray = String(length);
+    path.style.strokeDashoffset = String(length);
+  }, []);
+
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    wrap.setAttribute("data-state", "out");
+    void wrap.offsetWidth;
+    wrap.setAttribute("data-state", "in");
+  }, []);
+
+  return (
+    <span ref={wrapRef} className="t-success-check size-4" data-state="out" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path ref={pathRef} d="M4.5 12.5 9 17l10.5-10.5" />
+      </svg>
+    </span>
+  );
+}
+
 function SelectControl({ label, value, onChange, options }) {
   return (
     <div className="instrument-row">
@@ -638,7 +727,7 @@ function RangeControl({ label, min, max, step = 1, value, suffix = "", onChange 
       <div className="instrument-row-header">
         <Label className="instrument-label">{label}</Label>
         <span className="instrument-value">
-          {value}{suffix}
+          <DigitGroup key={`${label}-${value}${suffix}`} value={`${value}${suffix}`} />
         </span>
       </div>
       <Slider
@@ -1107,10 +1196,14 @@ function App() {
   const [fileMeta, setFileMeta] = useState(null);
   const [sourceStats, setSourceStats] = useState(null);
   const [feedbackState, setFeedbackState] = useState({ bug: "idle", feature: "idle" });
+  const [feedbackText, setFeedbackText] = useState({ bug: "", feature: "" });
+  const [feedbackError, setFeedbackError] = useState({ bug: false, feature: false });
+  const [feedbackShake, setFeedbackShake] = useState({ bug: false, feature: false });
   const [route, setRoute] = useState(() => (typeof window === "undefined" ? "/" : window.location.pathname));
   const [motionRevision, setMotionRevision] = useState(0);
   const [activeMode, setActiveMode] = useState("source");
   const [inspectorHidden, setInspectorHidden] = useState(false);
+  const [inspectorPresent, setInspectorPresent] = useState(true);
   const [showFinalFx, setShowFinalFx] = useState(false);
   const [backgroundPresetId, setBackgroundPresetId] = useState(1);
   const canvasRef = useRef(null);
@@ -1131,6 +1224,8 @@ function App() {
   const cropDragRef = useRef(null);
   const lightDragRef = useRef(null);
   const analyticsEventsRef = useRef([]);
+  const feedbackTimersRef = useRef({ bug: {}, feature: {} });
+  const feedbackFieldRefs = useRef({ bug: null, feature: null });
 
   const activeLightIndex = useMemo(() => lights.findIndex((light) => light.id === activeLightId), [activeLightId, lights]);
   const activeLight = activeLightIndex >= 0 ? lights[activeLightIndex] : null;
@@ -1150,6 +1245,72 @@ function App() {
     window.__GLYPH_STUDIO_EVENTS__ = analyticsEventsRef.current;
     window.dispatchEvent(new CustomEvent("glyph-studio:analytics", { detail: event }));
   }, []);
+
+  const clearFeedbackTimers = useCallback((type) => {
+    const timers = feedbackTimersRef.current[type] || {};
+    if (timers.shake) window.clearTimeout(timers.shake);
+    if (timers.revert) window.clearTimeout(timers.revert);
+    feedbackTimersRef.current[type] = {};
+  }, []);
+
+  const clearFeedbackError = useCallback((type) => {
+    clearFeedbackTimers(type);
+    setFeedbackError((current) => ({ ...current, [type]: false }));
+    setFeedbackShake((current) => ({ ...current, [type]: false }));
+  }, [clearFeedbackTimers]);
+
+  const showFeedbackError = useCallback((type) => {
+    clearFeedbackTimers(type);
+    trackEvent("feedback_validation_error", { type });
+    setFeedbackError((current) => ({ ...current, [type]: true }));
+    setFeedbackShake((current) => ({ ...current, [type]: false }));
+    setStatus(type === "bug" ? "Describe the bug before sending" : "Describe the feature before sending");
+    feedbackFieldRefs.current[type]?.focus();
+
+    window.requestAnimationFrame(() => {
+      const field = feedbackFieldRefs.current[type];
+      if (field) void field.offsetWidth;
+      setFeedbackShake((current) => ({ ...current, [type]: true }));
+    });
+
+    const shakeMs = readCssMs("--shake-dur-a", 80) * 2 + readCssMs("--shake-dur-b", 60) * 2;
+    const holdMs = readCssMs("--revert-hold", 3000);
+    feedbackTimersRef.current[type] = {
+      shake: window.setTimeout(() => {
+        setFeedbackShake((current) => ({ ...current, [type]: false }));
+      }, shakeMs + 20),
+      revert: window.setTimeout(() => {
+        setFeedbackError((current) => ({ ...current, [type]: false }));
+      }, shakeMs + holdMs)
+    };
+  }, [clearFeedbackTimers, trackEvent]);
+
+  const updateFeedbackText = useCallback((type, value) => {
+    setFeedbackText((current) => ({ ...current, [type]: value }));
+    clearFeedbackError(type);
+  }, [clearFeedbackError]);
+
+  const submitFeedback = useCallback((type) => {
+    if (!feedbackText[type].trim()) {
+      showFeedbackError(type);
+      return;
+    }
+
+    clearFeedbackError(type);
+    trackEvent("feedback_submit", { type });
+    setFeedbackState((current) => ({ ...current, [type]: "sent" }));
+    setStatus(type === "bug" ? "Bug report sent" : "Feature suggestion sent");
+  }, [clearFeedbackError, feedbackText, showFeedbackError, trackEvent]);
+
+  const retryFeedback = useCallback((type) => {
+    clearFeedbackError(type);
+    setFeedbackState((current) => ({ ...current, [type]: "idle" }));
+    setStatus(type === "bug" ? "Bug report ready to retry" : "Feature suggestion ready to retry");
+  }, [clearFeedbackError]);
+
+  useEffect(() => () => {
+    Object.keys(feedbackTimersRef.current).forEach(clearFeedbackTimers);
+  }, [clearFeedbackTimers]);
 
   const updateSetting = useCallback((key, value) => {
     trackEvent("setting_change", { key, value });
@@ -1209,10 +1370,31 @@ function App() {
 
   const selectStudioMode = useCallback((modeId) => {
     setActiveMode(modeId);
+    setInspectorPresent(true);
     setInspectorHidden(false);
     trackEvent("studio_mode_select", { mode: modeId });
     applyStudioModePreset(modeId);
   }, [applyStudioModePreset, trackEvent]);
+
+  const toggleInspector = useCallback(() => {
+    if (inspectorHidden) {
+      setInspectorPresent(true);
+      setInspectorHidden(false);
+      return;
+    }
+    setInspectorHidden(true);
+  }, [inspectorHidden]);
+
+  useEffect(() => {
+    if (!inspectorHidden) {
+      setInspectorPresent(true);
+      return undefined;
+    }
+
+    const closeMs = prefersReducedMotion() ? 0 : readCssMs("--panel-close-dur", 350);
+    const timer = window.setTimeout(() => setInspectorPresent(false), closeMs);
+    return () => window.clearTimeout(timer);
+  }, [inspectorHidden]);
 
   const requestMotionFrame = useCallback(() => {
     if (frameRef.current) return;
@@ -2569,7 +2751,7 @@ function App() {
         ) : null}
         <Button onClick={exportCanvas} disabled={exporting}>
           <DownloadIcon data-icon="inline-start" />
-          {exporting ? "Exporting" : "Export"}
+          <TextSwap text={exporting ? "Exporting" : "Export"} />
         </Button>
       </ControlCard>
       <ControlCard title="Final FX" description="Keep the pass list closed until you need it.">
@@ -2612,7 +2794,7 @@ function App() {
       <input ref={fileRef} hidden type="file" accept={UPLOAD_ACCEPT} onChange={(event) => handleFile(event.target.files[0])} />
 
       <main
-        className="studio-stage"
+        className="studio-stage t-resize"
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           event.preventDefault();
@@ -2628,7 +2810,7 @@ function App() {
             <strong>{sourceName ? `${sourceName} / ${currentStyleLabel} / ${exportLabel}` : "Drop media, tune ASCII, export."}</strong>
           </div>
           <div className="top-actions">
-            <button type="button" className="corner-action" onClick={() => setInspectorHidden((current) => !current)}>
+            <button type="button" className="corner-action" onClick={toggleInspector}>
               {inspectorHidden ? "SHOW" : "HIDE"}
             </button>
             <DropdownMenu>
@@ -2676,7 +2858,7 @@ function App() {
           {activeEffectNames.length ? <Badge variant="outline">{activeEffectNames.length} FX</Badge> : null}
         </div>
 
-        <div className="stage-canvas-wrap">
+        <div className="stage-canvas-wrap t-resize">
           <canvas
             ref={canvasRef}
             data-testid="ascii-canvas"
@@ -2744,13 +2926,18 @@ function App() {
           </Button>
           <Button variant="outline" onClick={exportCanvas} disabled={exporting}>
             <DownloadIcon data-icon="inline-start" />
-            {exporting ? "Exporting" : "Export"}
+            <TextSwap text={exporting ? "Exporting" : "Export"} />
           </Button>
         </div>
       </main>
 
-      {!inspectorHidden ? (
-        <aside className="shader-inspector" aria-label={`${activeModeMeta.title} inspector`}>
+      {inspectorPresent ? (
+        <aside
+          className="shader-inspector t-panel-slide"
+          data-open={inspectorHidden ? "false" : "true"}
+          aria-hidden={inspectorHidden ? "true" : undefined}
+          aria-label={`${activeModeMeta.title} inspector`}
+        >
           <header className="inspector-header">
             <div>
               <span>{activeModeMeta.label}</span>
@@ -2764,8 +2951,10 @@ function App() {
             ) : null}
           </header>
           <ScrollArea className="inspector-scroll">
-            <div className="inspector-content">
-              {inspectorContent}
+            <div className="inspector-content t-page-slide" data-page="1">
+              <section key={activeMode} className="t-page" data-page-id="1">
+                {inspectorContent}
+              </section>
             </div>
           </ScrollArea>
         </aside>
@@ -2804,7 +2993,20 @@ function App() {
                 <DialogTitle>Report a Bug</DialogTitle>
                 <DialogDescription>Describe what happened and how to reproduce it.</DialogDescription>
               </DialogHeader>
-              <Textarea placeholder="Tell us what went wrong..." />
+              <div className={`t-input-wrap grid gap-1 ${feedbackError.bug ? "is-error" : ""}`}>
+                <Textarea
+                  ref={(node) => {
+                    feedbackFieldRefs.current.bug = node;
+                  }}
+                  aria-invalid={feedbackError.bug}
+                  aria-describedby="bug-feedback-error"
+                  className={feedbackError.bug ? `is-error ${feedbackShake.bug ? "is-shaking" : ""}` : ""}
+                  placeholder="Tell us what went wrong..."
+                  value={feedbackText.bug}
+                  onChange={(event) => updateFeedbackText("bug", event.target.value)}
+                />
+                <p id="bug-feedback-error" className="t-error-msg text-xs text-destructive">Describe the bug before sending.</p>
+              </div>
               <section className="border border-border p-3">
                 <h3 className="text-sm font-semibold">Technical details (auto-captured)</h3>
                 <p className="mt-1 break-all text-sm leading-5 text-muted-foreground">{technicalDetails}</p>
@@ -2812,23 +3014,18 @@ function App() {
               <DialogFooter>
                 {feedbackState.bug === "sent" ? (
                   <>
-                    <Button disabled>Sent</Button>
-                    <Button variant="outline" onClick={() => {
-                      setFeedbackState((current) => ({ ...current, bug: "idle" }));
-                      setStatus("Bug report ready to retry");
-                    }}
-                    >
+                    <Button disabled>
+                      <SuccessCheck />
+                      Sent
+                    </Button>
+                    <Button variant="outline" onClick={() => retryFeedback("bug")}>
                       Retry
                     </Button>
                   </>
                 ) : (
                   <>
                     <Button variant="outline" onClick={() => setModal(null)}>Cancel</Button>
-                    <Button onClick={() => {
-                      setFeedbackState((current) => ({ ...current, bug: "sent" }));
-                      setStatus("Bug report sent");
-                    }}
-                    >
+                    <Button onClick={() => submitFeedback("bug")}>
                       Send Report
                     </Button>
                   </>
@@ -2842,27 +3039,35 @@ function App() {
                 <DialogTitle>Suggest a Feature</DialogTitle>
                 <DialogDescription>Share a parity gap or a new idea for the editor.</DialogDescription>
               </DialogHeader>
-              <Textarea placeholder="What should Glyph Studio do next?" />
+              <div className={`t-input-wrap grid gap-1 ${feedbackError.feature ? "is-error" : ""}`}>
+                <Textarea
+                  ref={(node) => {
+                    feedbackFieldRefs.current.feature = node;
+                  }}
+                  aria-invalid={feedbackError.feature}
+                  aria-describedby="feature-feedback-error"
+                  className={feedbackError.feature ? `is-error ${feedbackShake.feature ? "is-shaking" : ""}` : ""}
+                  placeholder="What should Glyph Studio do next?"
+                  value={feedbackText.feature}
+                  onChange={(event) => updateFeedbackText("feature", event.target.value)}
+                />
+                <p id="feature-feedback-error" className="t-error-msg text-xs text-destructive">Describe the feature before sending.</p>
+              </div>
               <DialogFooter>
                 {feedbackState.feature === "sent" ? (
                   <>
-                    <Button disabled>Sent</Button>
-                    <Button variant="outline" onClick={() => {
-                      setFeedbackState((current) => ({ ...current, feature: "idle" }));
-                      setStatus("Feature suggestion ready to retry");
-                    }}
-                    >
+                    <Button disabled>
+                      <SuccessCheck />
+                      Sent
+                    </Button>
+                    <Button variant="outline" onClick={() => retryFeedback("feature")}>
                       Retry
                     </Button>
                   </>
                 ) : (
                   <>
                     <Button variant="outline" onClick={() => setModal(null)}>Cancel</Button>
-                    <Button onClick={() => {
-                      setFeedbackState((current) => ({ ...current, feature: "sent" }));
-                      setStatus("Feature suggestion sent");
-                    }}
-                    >
+                    <Button onClick={() => submitFeedback("feature")}>
                       Send Suggestion
                     </Button>
                   </>

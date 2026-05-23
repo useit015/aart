@@ -198,6 +198,7 @@ describe("Glyph Studio app shell", () => {
     expect(screen.getByText(/Screen:/)).toBeInTheDocument();
     expect(screen.getByText(/Connection:/)).toBeInTheDocument();
 
+    await userEvent.type(screen.getByPlaceholderText("Tell us what went wrong..."), "The export button stalls.");
     await userEvent.click(screen.getByRole("button", { name: "Send Report" }));
     expect(screen.getByRole("button", { name: "Sent" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();

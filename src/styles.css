@@ -590,6 +590,16 @@
   border-color: var(--destructive);
 }
 
+.inspector-content.t-page-slide {
+  overflow: hidden;
+}
+
+.inspector-content.t-page-slide .t-page {
+  position: relative;
+  inset: auto;
+  min-width: 0;
+}
+
 @layer components {
   .mission-shell {
     position: relative;
